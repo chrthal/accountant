@@ -1,0 +1,152 @@
+{{ define "title" }}{{ t "Bank" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Abgleich" }}</p>
+    <h1>{{ t "Bankumsätze" }}</h1>
+    <p class="lede">{{ t "Ein Bankumsatz ist keine Buchung, sondern der Nachweis, dass Geld geflossen ist. Zuordnungen lassen sich jederzeit wieder lösen; an der Buchung selbst ändert sich dadurch nichts." }}</p>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+{{ if .SureCount }}
+<div class="alert notice">{{ template "icon" "link" }}
+  <div><p><strong>{{ tf "%d Zahlungseingang/-eingänge" .SureCount }}</strong> {{ t "nennen ihre Rechnung und zahlen genau den offenen Betrag. Diese lassen sich auf einmal als bezahlt buchen und zuordnen." }}</p>
+  <form method="post" action="/bank/auto" class="inline-form"><button type="submit" class="sm primary">{{ template "icon" "check" }} {{ t "Alle eindeutigen zuordnen" }}</button></form></div>
+</div>
+{{ end }}
+
+{{ if .OwnCount }}
+<div class="alert notice">{{ template "icon" "users" }}
+  <div><p><strong>{{ tf "%d Überweisung(en) an oder von Ihnen selbst." .OwnCount }}</strong> {{ t "Das sind meist Privatentnahmen oder Privateinlagen: kein Ertrag und kein Aufwand, sondern Geld zwischen Betrieb und Privat. Als privat markiert zählen sie nicht in der Einnahmen-Ausgaben-Rechnung." }}</p>
+  <form method="post" action="/bank/private-own" class="inline-form"><button type="submit" class="sm primary">{{ template "icon" "check" }} {{ t "Alle als privat markieren" }}</button></form></div>
+</div>
+{{ end }}
+
+{{ if .OwnBooked }}
+<div class="alert warn">{{ template "icon" "alert" }}
+  <div><p><strong>{{ tf "%d Überweisung(en) an oder von Ihnen selbst sind als Einnahme oder Ausgabe gebucht." .OwnBooked }}</strong> {{ t "Als Ausgabe gebucht mindern sie den Gewinn, obwohl es Privatentnahmen sind. Umbuchen storniert die Buchungen am selben Tag und markiert die Umsätze als privat; Rechnungszahlungen und Anlagen bleiben unberührt." }}</p>
+  <form method="post" action="/bank/private-own-booked" class="inline-form" data-confirm="{{ tf "%d Buchung(en) stornieren und die Umsätze als privat markieren?" .OwnBooked }}"><button type="submit" class="sm primary">{{ template "icon" "undo" }} {{ t "Alle als privat umbuchen" }}</button></form>
+  <a class="btn sm ghost" href="/bank?all=1">{{ t "Einzeln ansehen" }}</a></div>
+</div>
+{{ end }}
+
+{{ with .Import }}
+<div class="alert notice" role="status">{{ template "icon" "check" }}
+  <div><p>{{ tf "%d Umsätze importiert, %d bereits vorhanden." .Imported .Duplicates }}</p>
+  {{ if .Skipped }}<p class="small">{{ t "Übersprungene Zeilen:" }}</p>
+    <ul class="small">{{ range .Skipped }}<li>{{ . }}</li>{{ end }}</ul>{{ end }}</div>
+</div>
+{{ end }}
+
+<div class="actions section-head">
+  <a class="btn" href="/bank/drafts">{{ template "icon" "list" }} {{ t "Buchungsvorschläge für offene Umsätze" }}</a>
+</div>
+
+<div class="cols-main">
+  <section class="card">
+    <div class="card-head">
+      <h2>{{ if eq (index .Form "all") "1" }}{{ t "Alle Umsätze" }}{{ else }}{{ t "Offene Umsätze" }}{{ end }}</h2>
+      {{ if eq (index .Form "all") "1" }}<a class="btn ghost sm" href="/bank">{{ t "nur offene" }}</a>
+      {{ else }}<a class="btn ghost sm" href="/bank?all=1">{{ t "alle anzeigen" }}</a>{{ end }}
+    </div>
+    {{ if not .Transactions }}
+      <div class="empty">{{ template "icon" "bank" }}<p>{{ t "Keine Umsätze." }}</p></div>
+    {{ else }}
+    <ul class="ledger">
+      {{ range .Transactions }}
+      <li>
+        <div class="ledger-row {{ .Direction }}">
+          <span class="glyph">{{ if eq .Direction "income" }}{{ template "icon" "in" }}{{ else }}{{ template "icon" "out" }}{{ end }}</span>
+          <span>
+            <span class="title">{{ if .Counterparty }}{{ .Counterparty }}{{ else if .Purpose }}{{ .Purpose }}{{ else }}—{{ end }}</span>
+            <span class="sub">{{ date .BookedOn }}{{ if .Counterparty }}{{ with .Purpose }} · {{ . }}{{ end }}{{ end }}</span>
+          </span>
+          <span class="figure"><span class="amount {{ if eq .Direction "income" }}pos{{ else }}neg{{ end }}">{{ eur .AmountCents }}</span></span>
+          <span class="aside">
+            {{ if .IsMatched }}
+              <span class="badge ok">{{ template "icon" "link" }} {{ tf "zugeordnet: %s" .MatchedEntryDescription }}</span>
+              <form method="post" action="/bank/{{ .ID }}/unmatch" class="inline-form">
+                <button type="submit" class="link">{{ t "Zuordnung lösen" }}</button>
+              </form>
+              {{ if .OwnTransfer }}
+              <form method="post" action="/bank/{{ .ID }}/to-private" class="inline-form" data-confirm="{{ t "Die Buchung am selben Tag stornieren und den Umsatz als privat markieren?" }}">
+                <button type="submit" class="sm">{{ template "icon" "undo" }} {{ t "Als privat umbuchen" }}</button>
+              </form>
+              {{ end }}
+            {{ else if .IsPrivate }}
+              <span class="badge">{{ template "icon" "users" }} {{ t "privat" }}: {{ t .PrivateKind }}</span>
+              <form method="post" action="/bank/{{ .ID }}/unprivate" class="inline-form">
+                <button type="submit" class="link">{{ t "Privat aufheben" }}</button>
+              </form>
+            {{ else }}
+              {{ $tx := . }}
+              <span class="suggest">
+                {{ range .InvoiceSuggestions }}
+                {{ if .Bookable }}
+                <form method="post" action="/bank/{{ $tx.ID }}/invoice">
+                  <input type="hidden" name="invoice_id" value="{{ .ID }}">
+                  {{ if .Partial }}
+                  <button type="submit" class="sm" title="{{ tf "Bucht %s € als Teilzahlung; %s € bleiben offen." (eur .AmountCents) (eur (sub64 .OpenCents .AmountCents)) }}">{{ template "icon" "file" }} {{ tf "Teilzahlung Rechnung %s" .Number }}</button>
+                  {{ else }}
+                  <button type="submit" class="sm {{ if .Sure }}primary{{ end }}" title="{{ t "Zahlung buchen und zuordnen:" }} {{ range $i, $r := .Reasons }}{{ if $i }}, {{ end }}{{ t $r }}{{ end }}">{{ template "icon" "file" }} {{ tf "Rechnung %s bezahlt" .Number }}</button>
+                  {{ end }}
+                </form>
+                <span class="meta">{{ range $i, $r := .Reasons }}{{ if $i }} · {{ end }}{{ t $r }}{{ end }}</span>
+                {{ else }}
+                {{ $differs := tf "Der Umsatz ist höher als der offene Betrag (%s €). Bitte auf der Rechnung prüfen." (eur .OpenCents) }}
+                <a class="badge warn" href="/invoices/{{ .ID }}" title="{{ $differs }}">{{ template "icon" "alert" }} {{ tf "nennt Rechnung %s, Betrag weicht ab" .Number }}</a>
+                {{ end }}
+                {{ end }}
+                {{ range .Suggestions }}
+                <form method="post" action="/bank/{{ $tx.ID }}/match">
+                  <input type="hidden" name="entry_id" value="{{ .ID }}">
+                  <button type="submit" class="sm" title="{{ .Description }}">{{ template "icon" "link" }} #{{ .ID }} {{ truncate .Description 28 }} · {{ date .BookedOn }}</button>
+                </form>
+                {{ end }}
+                <a class="btn sm ghost" href="/entries/new?bank_tx={{ .ID }}">{{ template "icon" "plus" }} {{ t "Buchung anlegen" }}</a>
+                <form method="post" action="/bank/{{ .ID }}/private" class="inline-form">
+                  <button type="submit" class="sm {{ if .OwnTransfer }}primary{{ else }}ghost{{ end }}" title="{{ t "Privatentnahme oder Privateinlage: zählt nicht zu Einnahmen und Ausgaben" }}">{{ template "icon" "users" }} {{ t "Privat" }}</button>
+                </form>
+              </span>
+              {{ if $.Entries }}
+              <details class="disclosure">
+                <summary>{{ t "Andere Buchung wählen" }}</summary>
+                <div class="disclosure-body">
+                <form method="post" action="/bank/{{ .ID }}/match" class="inline-form">
+                  <select name="entry_id" required aria-label="{{ t "Buchung wählen" }}">
+                    <option value="">— {{ t "Buchung wählen" }} —</option>
+                    {{ range $.Entries }}{{ if eq .Direction $tx.Direction }}
+                      <option value="{{ .ID }}">{{ date .BookedOn }} · {{ .Description }} · {{ eur .AmountGrossCents }}</option>
+                    {{ end }}{{ end }}
+                  </select>
+                  <button type="submit" class="sm">{{ t "zuordnen" }}</button>
+                </form>
+                </div>
+              </details>
+              {{ end }}
+            {{ end }}
+          </span>
+        </div>
+      </li>
+      {{ end }}
+    </ul>
+    {{ end }}
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Kontoauszug importieren" }}</h2></div>
+    <form method="post" action="/bank/upload" enctype="multipart/form-data" class="card-body form">
+      <div class="dropzone">
+        {{ template "icon" "upload" }}
+        <strong>{{ t "CSV-Export der Bank" }}</strong>
+        <input type="file" name="file" accept=".csv,text/csv" required>
+      </div>
+      <p class="note">{{ t "Die Spalten werden im nächsten Schritt zugeordnet. Die Datei muss also keinem bestimmten Format entsprechen. Mehrfaches Importieren derselben Datei ist unbedenklich: bereits bekannte Umsätze werden übersprungen." }}</p>
+      <button type="submit" class="primary">{{ template "icon" "right" }} {{ t "Datei einlesen" }}</button>
+    </form>
+  </section>
+</div>
+{{ end }}

@@ -1,0 +1,98 @@
+{{ define "title" }}{{ t "Belege prüfen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/receipts/new">{{ t "Beleg erfassen" }}</a> / {{ t "Warteliste" }}</p>
+    <h1>{{ t "Belege prüfen" }}</h1>
+    <p class="lede">{{ t "Was aus den Belegen gelesen wurde. Bitte mit der Vorschau vergleichen und korrigieren; gebucht wird nur, was angehakt ist, jeweils mit dem Beleg." }}</p>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+{{ if .Pending }}
+<div class="alert notice" data-refresh="4">{{ template "icon" "info" }}
+  <p>{{ tf "%d Beleg(e) werden noch gelesen. Das dauert je Foto einige Sekunden; die Seite aktualisiert sich von selbst." .Pending }}
+    <span data-refresh-stale hidden>{{ t "Sie haben schon etwas eingetragen, darum lädt die Seite nicht neu." }} <a href="/receipts/review">{{ t "Jetzt neu laden" }}</a></span></p></div>
+{{ end }}
+
+{{ if not .ImportRows }}
+<section class="card"><div class="empty">{{ template "icon" "check" }}<p>{{ t "Keine Belege auf der Warteliste." }}</p>
+  <a class="btn" href="/receipts/new">{{ t "Beleg erfassen" }}</a></div></section>
+{{ else }}
+<form method="post" action="/receipts/review" class="grid">
+  {{ $cats := .Categories }}{{ $cons := .Contacts }}
+  {{ range .ImportRows }}
+  {{ $id := i64 .ID }}
+  {{ if .Pending }}
+  <section class="card draft pending">
+    <div class="card-head">
+      <span><strong>{{ .Filename }}</strong> <span class="badge">{{ t "wird gelesen …" }}</span></span>
+      <button type="submit" name="discard" value="{{ $id }}" class="ghost sm danger" formnovalidate>{{ template "icon" "trash" }} {{ t "Verwerfen" }}</button>
+    </div>
+  </section>
+  {{ else }}
+  <section class="card draft">
+    <div class="card-head">
+      <label class="check"><input type="checkbox" name="pick" value="{{ $id }}" {{ if .Picked }}checked{{ end }}>
+        <span><strong>{{ .Filename }}</strong></span></label>
+      <a class="btn ghost sm" href="/receipts/queue/{{ $id }}/file" target="_blank" rel="noopener">{{ template "icon" "file" }} {{ t "Beleg ansehen" }}</a>
+    </div>
+    <div class="card-body receipt-row">
+      {{ if not (hasSuffix .Filename ".pdf") }}<a href="/receipts/queue/{{ $id }}/file" target="_blank" rel="noopener" class="receipt-thumb"><img src="/receipts/queue/{{ $id }}/file" alt="{{ t "Vorschau" }}" loading="lazy"></a>{{ end }}
+      <div>
+      {{ with .Err }}<div class="alert error">{{ template "icon" "alert" }}<p>{{ . }}</p></div>
+      {{ else }}{{ with .Problem }}<div class="alert warn">{{ template "icon" "alert" }}<p>{{ . }}</p></div>{{ end }}{{ end }}
+      {{ with index .Fields "note" }}<p class="meta">{{ . }}</p>{{ end }}
+      {{ with index .Fields "why" }}<p class="meta"><span class="badge ok">{{ t "ähnliche Buchung" }}</span> {{ . }}</p>{{ end }}
+      <div class="draft-grid">
+        <label class="field"><span>{{ t "Belegdatum" }}</span>
+          <input type="text" name="booked_on_{{ $id }}" autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Fields "booked_on") }}"></label>
+        <label class="field"><span>{{ t "Betrag brutto (€)" }}</span>
+          <input class="amount-input" type="text" name="amount_{{ $id }}" inputmode="decimal" value="{{ index .Fields "amount" }}" placeholder="{{ eur 0 }}"></label>
+        <label class="field"><span>{{ t "USt-Satz" }}</span>
+          <select name="vat_rate_{{ $id }}">
+            {{ $v := index .Fields "vat_rate" }}
+            {{ range vatRates }}<option value="{{ . }}" {{ if eq (itoa .) $v }}selected{{ end }}>{{ . }} %</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Art" }}</span>
+          <select name="direction_{{ $id }}">
+            <option value="outgoing" {{ if ne (index .Fields "direction") "income" }}selected{{ end }}>{{ t "Ausgabe" }}</option>
+            <option value="income" {{ if eq (index .Fields "direction") "income" }}selected{{ end }}>{{ t "Einnahme" }}</option>
+          </select></label>
+        <label class="field wide"><span>{{ t "Beschreibung" }}</span>
+          <input type="text" name="description_{{ $id }}" maxlength="200" value="{{ index .Fields "description" }}"></label>
+        <label class="field"><span>{{ t "Kategorie" }}</span>
+          <select name="category_id_{{ $id }}"><option value="">—</option>
+            {{ $sel := index .Fields "category_id" }}
+            {{ range $cats }}<option value="{{ .ID }}" {{ if eq (i64 .ID) $sel }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Kontakt" }}</span>
+          <select name="contact_id_{{ $id }}"><option value="">—</option>
+            {{ $csel := index .Fields "contact_id" }}
+            {{ range $cons }}<option value="{{ .ID }}" {{ if eq (i64 .ID) $csel }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Privatanteil: so ermittelt" }} <span class="hint">{{ t "optional" }}</span></span>
+          <input type="text" name="business_note_{{ $id }}" maxlength="200" value="{{ index .Fields "business_note" }}" placeholder="{{ t "z. B. Einzelverbindungsnachweis" }}"></label>
+        <label class="field"><span title="{{ t "Teilweise privat genutzt, z. B. Telefon: nur dieser Anteil zählt für Gewinn und Vorsteuer." }}">{{ t "Betrieblich %" }}</span>
+          <input type="number" name="business_pct_{{ $id }}" min="1" max="100" step="1" inputmode="numeric" value="{{ or (index .Fields "business_pct") "100" }}"></label>
+      </div>
+      <div class="actions">
+        <a class="btn ghost sm" href="/receipts/queue/{{ $id }}">{{ t "Im Formular öffnen" }}</a>
+        <button type="submit" name="discard" value="{{ $id }}" class="ghost sm danger" formnovalidate>{{ template "icon" "trash" }} {{ t "Verwerfen" }}</button>
+      </div>
+      </div>
+    </div>
+  </section>
+  {{ end }}
+  {{ end }}
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Angehakte buchen" }}</button>
+    <button type="submit" name="discard" value="all" class="ghost danger" formnovalidate
+            data-confirm="{{ t "Alle Belege von der Warteliste verwerfen? Gebucht wird dabei nichts." }}">{{ t "Alle verwerfen" }}</button>
+    <span class="meta">{{ t "Vorausgewählt ist, was vollständig gelesen wurde und noch nicht gebucht ist. Im Formular öffnen lässt sich ein Beleg zum Beispiel, um ihn einem Bankumsatz zuzuordnen." }}</span>
+  </div>
+</form>
+{{ end }}
+{{ end }}

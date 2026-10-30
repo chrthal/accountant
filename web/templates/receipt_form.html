@@ -1,0 +1,49 @@
+{{ define "title" }}{{ t "Beleg erfassen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Ausgabe aus Beleg" }}</p>
+    <h1>{{ t "Beleg erfassen" }}</h1>
+    <p class="lede">{{ t "Kassenbon fotografieren oder die PDF-Rechnung eines Lieferanten hochladen. Die Datei wird mit der Buchung als Beleg aufbewahrt." }}</p>
+  </div>
+</header>
+
+{{ with .QueuedImports }}<div class="alert notice form-card">{{ template "icon" "clock" }}
+  <p>{{ tf "%d Beleg(e) warten auf die Prüfung." . }} <a href="/receipts/review">{{ t "Jetzt prüfen" }}</a></p></div>{{ end }}
+
+<form method="post" action="/receipts" enctype="multipart/form-data" class="card card-body form form-card">
+  <div class="dropzone">
+    {{ template "icon" "camera" }}
+    <strong>{{ t "Beleg fotografieren oder hochladen" }}</strong>
+    <p class="meta">{{ t "Foto (JPEG, PNG, HEIC) oder PDF, höchstens 10 MiB. Betrag, Datum, Lieferant und Rechnungsnummer werden, soweit erkennbar, in das Buchungsformular übernommen. Gespeichert wird nichts automatisch: die Werte sind ein Vorschlag, den Sie prüfen." }}</p>
+    <!-- capture is deliberately absent: on a phone, the chooser then offers the
+         camera *and* files, so a PDF from mail or downloads can be picked too. -->
+    <input type="file" name="photo" accept="image/*,application/pdf" required>
+  </div>
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "search" }} {{ t "Beleg auswerten" }}</button>
+    <a class="btn ghost" href="/entries/new">{{ t "Ohne Beleg erfassen" }}</a>
+  </div>
+</form>
+
+<form method="post" action="/receipts/batch" enctype="multipart/form-data" class="card card-body form form-card section" data-busy="{{ t "Wird hochgeladen …" }}">
+  <h2>{{ t "Mehrere Belege auf einmal" }}</h2>
+  <label class="field"><span>{{ t "Fotos oder PDF-Rechnungen" }} <span class="hint">{{ tf "mehrere auswählen, bis %d auf der Warteliste" maxQueued }}</span></span>
+    <input type="file" name="photos" accept="image/*,application/pdf" multiple required></label>
+  <p class="note">{{ t "Alle Belege werden ausgelesen und kommen auf eine Warteliste. Dort prüft man sie in einer Liste, mit Vorschau, und bucht die angehakten. Kategorie und USt-Satz werden aus den Stichwörtern der Kategorien vorgeschlagen; ein Beleg, der schon gebucht ist, wird erkannt." }}</p>
+  <p class="note">{{ t "Viele oder große Dateien brauchen beim Hochladen einen Moment. Gelesen werden sie danach im Hintergrund, mehrere gleichzeitig; die Warteliste zeigt, wie weit es ist." }}</p>
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "upload" }} {{ t "Belege einlesen" }}</button>
+  </div>
+</form>
+
+{{ if or (not .OCRAvailable) (not .PDFAvailable) }}
+<div class="alert warn section form-card">{{ template "icon" "info" }}
+  <p>{{ if and (not .OCRAvailable) (not .PDFAvailable) }}{{ t "Auf diesem Server ist keine Texterkennung installiert. Belege lassen sich trotzdem hochladen und werden abgelegt, nur ohne automatisches Vorausfüllen." }}
+  {{ else if not .OCRAvailable }}{{ t "Fotos werden nicht ausgelesen (tesseract fehlt). PDF-Rechnungen mit Textebene schon." }}
+  {{ else }}{{ t "PDF-Rechnungen werden nicht ausgelesen (poppler fehlt), nur abgelegt. Fotos werden ausgelesen." }}{{ end }}
+  <br><a href="/entries/new">{{ t "Buchung von Hand erfassen" }}</a></p>
+</div>
+{{ end }}
+{{ end }}

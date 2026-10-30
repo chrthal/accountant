@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ block "title" . }}kmu-buchhaltung{{ end }}</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c1310" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <!-- Not deferred: it sets the theme before first paint (ADR 0013). -->
+  <script src="/static/app.js"></script>
+</head>
+<body>
+{{ template "sprite" }}
+
+<aside class="sidebar" aria-label="{{ t "Hauptnavigation" }}">
+  <a class="brand" href="/">
+    <span class="brand-mark">{{ template "icon" "logo" }}</span>
+    <span>kmu-buchhaltung<small>{{ t "Einnahmen-Ausgaben-Rechnung" }}</small></span>
+  </a>
+  <a class="nav-cta" href="/entries/new">{{ template "icon" "plus" }} {{ t "Buchung erfassen" }}</a>
+  <nav class="nav-group">
+    <div class="nav-label">{{ t "Tagesgeschäft" }}</div>
+    <a href="/" {{ if eq .Nav "overview" }}aria-current="page"{{ end }}>{{ template "icon" "home" }} {{ t "Übersicht" }}</a>
+    <a href="/entries" {{ if eq .Nav "entries" }}aria-current="page"{{ end }}>{{ template "icon" "list" }} {{ t "Buchungen" }}</a>
+    <a href="/receipts/new" {{ if eq .Nav "receipts" }}aria-current="page"{{ end }}>{{ template "icon" "camera" }} {{ t "Beleg erfassen" }}</a>
+    <a href="/invoices" {{ if eq .Nav "invoices" }}aria-current="page"{{ end }}>{{ template "icon" "file" }} {{ t "Rechnungen" }}</a>
+    <a href="/bank" {{ if eq .Nav "bank" }}aria-current="page"{{ end }}>{{ template "icon" "bank" }} {{ t "Bank" }}</a>
+  </nav>
+  <nav class="nav-group">
+    <div class="nav-label">{{ t "Auswertung" }}</div>
+    <a href="/reports" {{ if eq .Nav "reports" }}aria-current="page"{{ end }}>{{ template "icon" "chart" }} {{ t "Jahr & Export" }}</a>
+    <a href="/reports/vat" {{ if eq .Nav "vat" }}aria-current="page"{{ end }}>{{ template "icon" "percent" }} {{ t "Umsatzsteuer" }}</a>
+    <a href="/assets" {{ if eq .Nav "assets" }}aria-current="page"{{ end }}>{{ template "icon" "clock" }} {{ t "Anlagen" }}</a>
+  </nav>
+  <nav class="nav-group">
+    <div class="nav-label">{{ t "Stammdaten" }}</div>
+    <a href="/contacts" {{ if eq .Nav "contacts" }}aria-current="page"{{ end }}>{{ template "icon" "users" }} {{ t "Kontakte" }}</a>
+    <a href="/categories" {{ if eq .Nav "categories" }}aria-current="page"{{ end }}>{{ template "icon" "tag" }} {{ t "Kategorien" }}</a>
+    <a href="/settings" {{ if eq .Nav "settings" }}aria-current="page"{{ end }}>{{ template "icon" "settings" }} {{ t "Einstellungen" }}</a>
+    <a href="/help" {{ if eq .Nav "help" }}aria-current="page"{{ end }}>{{ template "icon" "info" }} {{ t "Hilfe" }}</a>
+  </nav>
+  <div class="sidebar-foot">
+    <span>{{ t "Version" }} {{ .Version }}</span>
+    <span>
+      {{ if .AuthEnabled }}<form method="post" action="/logout" class="inline-form"><button type="submit" class="icon-btn" title="{{ t "Abmelden" }}" aria-label="{{ t "Abmelden" }}">{{ template "icon" "logout" }}</button></form>{{ end }}
+      <button type="button" class="icon-btn theme-toggle" data-theme-toggle data-label-system="{{ t "Design: System" }}" data-label-light="{{ t "Design: Hell" }}" data-label-dark="{{ t "Design: Dunkel" }}" data-label-switch="{{ t "(wechseln)" }}" aria-label="{{ t "Design wechseln" }}">{{ template "theme-icons" }}</button>
+    </span>
+  </div>
+</aside>
+
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark">{{ template "icon" "logo" }}</span>
+    <span>kmu-buchhaltung</span>
+  </a>
+  <button type="button" class="icon-btn theme-toggle" data-theme-toggle data-label-system="{{ t "Design: System" }}" data-label-light="{{ t "Design: Hell" }}" data-label-dark="{{ t "Design: Dunkel" }}" data-label-switch="{{ t "(wechseln)" }}" aria-label="{{ t "Design wechseln" }}">{{ template "theme-icons" }}</button>
+  <details class="more">
+    <summary class="icon-btn" aria-label="{{ t "Weitere Bereiche" }}">{{ template "icon" "menu" }}</summary>
+    <div class="more-panel">
+      <a href="/receipts/new" {{ if eq .Nav "receipts" }}aria-current="page"{{ end }}>{{ template "icon" "camera" }} {{ t "Beleg erfassen" }}</a>
+      <a href="/reports" {{ if eq .Nav "reports" }}aria-current="page"{{ end }}>{{ template "icon" "chart" }} {{ t "Jahr & Export" }}</a>
+      <a href="/reports/vat" {{ if eq .Nav "vat" }}aria-current="page"{{ end }}>{{ template "icon" "percent" }} {{ t "Umsatzsteuer" }}</a>
+      <a href="/assets" {{ if eq .Nav "assets" }}aria-current="page"{{ end }}>{{ template "icon" "clock" }} {{ t "Anlagen" }}</a>
+      <a href="/contacts" {{ if eq .Nav "contacts" }}aria-current="page"{{ end }}>{{ template "icon" "users" }} {{ t "Kontakte" }}</a>
+      <a href="/categories" {{ if eq .Nav "categories" }}aria-current="page"{{ end }}>{{ template "icon" "tag" }} {{ t "Kategorien" }}</a>
+      <a href="/settings" {{ if eq .Nav "settings" }}aria-current="page"{{ end }}>{{ template "icon" "settings" }} {{ t "Einstellungen" }}</a>
+      <a href="/help" {{ if eq .Nav "help" }}aria-current="page"{{ end }}>{{ template "icon" "info" }} {{ t "Hilfe" }}</a>
+      {{ if .AuthEnabled }}<form method="post" action="/logout"><button type="submit" class="ghost">{{ template "icon" "logout" }} {{ t "Abmelden" }}</button></form>{{ end }}
+    </div>
+  </details>
+</header>
+
+<main class="main" id="main">
+  {{ with .Error }}<div class="alert error" role="alert">{{ template "icon" "alert" }}<p>{{ . }}</p></div>{{ end }}
+  {{ block "content" . }}{{ end }}
+  <p class="footer-note">kmu-buchhaltung {{ .Version }}: {{ t "Rechenhilfe, keine Steuerberatung." }}</p>
+</main>
+
+<nav class="tabbar" aria-label="{{ t "Schnellnavigation" }}">
+  <a href="/" {{ if eq .Nav "overview" }}aria-current="page"{{ end }}>{{ template "icon" "home" }}<span>{{ t "Übersicht" }}</span></a>
+  <a href="/entries" {{ if eq .Nav "entries" }}aria-current="page"{{ end }}>{{ template "icon" "list" }}<span>{{ t "Buchungen" }}</span></a>
+  <a href="/entries/new" class="tab-add" aria-label="{{ t "Buchung erfassen" }}"><span class="fab">{{ template "icon" "plus" }}</span></a>
+  <a href="/invoices" {{ if eq .Nav "invoices" }}aria-current="page"{{ end }}>{{ template "icon" "file" }}<span>{{ t "Rechnungen" }}</span></a>
+  <a href="/bank" {{ if eq .Nav "bank" }}aria-current="page"{{ end }}>{{ template "icon" "bank" }}<span>{{ t "Bank" }}</span></a>
+</nav>
+</body>
+</html>
+
+{{ define "icon" }}<svg class="icon i-{{ . }}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ . }}"/></svg>{{ end }}
+
+{{ define "theme-icons" }}<svg class="icon i-system" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-system"/></svg><svg class="icon i-light" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sun"/></svg><svg class="icon i-dark" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-moon"/></svg>{{ end }}
+
+{{ define "sprite" }}
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" class="visually-hidden" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M5 19V13M10 19V9M15 19V5M20 19H3"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 9 12 4l9 5"/><path d="M4 21h16M5 18h14M6 10v8M10 10v8M14 10v8M18 10v8"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.3-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.8 3.1 2.6 3.5 5.2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9Z"/><circle cx="8" cy="8" r="1.5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-system" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M17 7 7 17M7 9v8h8"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m20 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15 7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="1.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></symbol>
+  <symbol id="i-euro" viewBox="0 0 24 24"><path d="M18 6.5A7 7 0 0 0 7 12a7 7 0 0 0 11 5.5"/><path d="M4 10h9M4 14h8"/></symbol>
+</svg>
+{{ end }}

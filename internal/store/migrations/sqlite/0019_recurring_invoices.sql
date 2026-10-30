@@ -1,0 +1,24 @@
+-- ADR 0038: recurring invoices. Keep in lockstep with
+-- postgres/0019_recurring_invoices.sql.
+--
+-- A template, not an invoice: customer, positions as typed (JSON, like a
+-- draft), interval and the date the next invoice is due. Nothing is sent or
+-- issued by itself; the app reminds, the user issues. Issuing moves next_due
+-- on by one interval, in the same transaction as the invoice.
+
+CREATE TABLE recurring_invoices (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact_id INTEGER NOT NULL REFERENCES contacts (id),
+    name       TEXT NOT NULL,
+    frequency  TEXT NOT NULL CHECK (frequency IN ('monthly', 'quarterly', 'yearly')),
+    next_due   TEXT NOT NULL,
+    lines      TEXT NOT NULL,
+    note       TEXT NOT NULL DEFAULT '',
+    active     INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX recurring_invoices_contact_idx ON recurring_invoices (contact_id);
+
+-- Which template an invoice was issued from, for the history.
+ALTER TABLE invoices ADD COLUMN recurring_id INTEGER REFERENCES recurring_invoices (id);

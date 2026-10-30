@@ -1,0 +1,177 @@
+{{ define "title" }}{{ t "Übersicht" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Geschäftsjahr" }}</p>
+    <h1>{{ tf "Übersicht %d" .Year }}</h1>
+  </div>
+  <div class="page-actions">
+    <span class="year-nav">
+      <a href="/?year={{ dec .Year }}" aria-label="{{ t "Vorjahr" }}">{{ template "icon" "left" }}</a>
+      <strong>{{ .Year }}</strong>
+      <a href="/?year={{ inc .Year }}" aria-label="{{ t "Folgejahr" }}">{{ template "icon" "right" }}</a>
+    </span>
+    <a class="btn" href="/receipts/new">{{ template "icon" "camera" }} {{ t "Beleg" }}</a>
+    <a class="btn primary" href="/entries/new">{{ template "icon" "plus" }} {{ t "Buchung" }}</a>
+  </div>
+</header>
+
+{{ if not .Settings.IssuerName }}
+<div class="alert notice">{{ template "icon" "info" }}
+  <p>{{ t "Willkommen! Bevor die erste Rechnung ausgestellt werden kann, braucht es die eigenen Absenderdaten." }} <a href="/settings">{{ t "Jetzt unter Einstellungen eintragen" }}</a>
+    {{ if .Fresh }}<br>{{ t "Umzug von einer anderen Installation?" }} <a href="/settings#restore">{{ t "Bücher aus einer Sicherung übernehmen" }}</a>{{ end }}</p>
+</div>
+{{ end }}
+
+<section class="cols-4" aria-label="{{ t "Kennzahlen" }}">
+  <div class="card kpi hero">
+    <div class="kpi-label"><span class="dot"></span> {{ t "Ergebnis" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.ResultCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ t "Einnahmen − Ausgaben, brutto" }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot pos"></span> {{ t "Einnahmen" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.IncomeGrossCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ tf "davon USt %s €" (eur .Totals.IncomeVATCents) }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot neg"></span> {{ t "Ausgaben" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.OutgoingGrossCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ if ne .KUCoverage "full" }}{{ tf "davon Vorsteuer %s €" (eur .Totals.OutgoingVATDeductibleCents) }}{{ end }}{{ if .Totals.OutgoingVATBlockedCents }}{{ if ne .KUCoverage "full" }}, {{ end }}{{ tf "USt nicht abziehbar %s €" (eur .Totals.OutgoingVATBlockedCents) }}{{ end }}</div>
+  </div>
+  {{ if ne .KUCoverage "full" }}
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot accent"></span> {{ t "USt-Saldo" }}</div>
+    {{ $saldo := .Totals.PayableCents }}
+    <div class="kpi-value num">{{ eur $saldo }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ if neg $saldo }}{{ t "Gutschrift fürs Jahr" }}{{ else }}{{ t "Zahllast fürs Jahr" }}{{ end }}{{ if eq .KUCoverage "partial" }}, {{ t "nur außerhalb der Kleinunternehmerzeit" }}{{ end }}, <a href="/reports/vat?year={{ .Year }}">{{ t "je Zeitraum" }}</a></div>
+  </div>
+  {{ else }}
+  {{/* Kleinunternehmer: no VAT charged, none deducted (ADR 0022). A saldo
+       would show a Gutschrift that does not exist. */}}
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot accent"></span> {{ t "Umsatzsteuer" }}</div>
+    <div class="kpi-value num">{{ eur 0 }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ tf "Kleinunternehmer: keine Zahllast, kein Vorsteuerabzug. Bezahlte USt %s € ist Teil der Ausgaben." (eur .Totals.OutgoingVATCents) }}</div>
+  </div>
+  {{ end }}
+</section>
+
+{{ with .DueRecurring }}
+<section class="card section" aria-labelledby="due-title">
+  <div class="card-head"><h2 id="due-title">{{ t "Wiederkehrende Rechnungen fällig" }}</h2><a class="meta" href="/recurring">{{ t "alle anzeigen" }}</a></div>
+  <ul class="ledger">{{ range . }}{{ template "recurring-row" . }}{{ end }}</ul>
+</section>
+{{ end }}
+
+
+<div class="cols-main section">
+  <section class="card" aria-labelledby="chart-title">
+    <div class="card-head">
+      <h2 id="chart-title">{{ t "Monatsverlauf" }}</h2>
+      <div class="legend"><span><i class="l-in"></i>{{ t "Einnahmen" }}</span><span><i class="l-out"></i>{{ t "Ausgaben" }}</span></div>
+    </div>
+    <div class="card-body">
+      {{ with .Chart }}
+      <svg class="chart" viewBox="0 0 {{ .W }} {{ .H }}" role="img" aria-label="{{ t "Einnahmen und Ausgaben je Monat" }}">
+        {{ range .Ticks }}
+          <line class="grid-line" x1="{{ $.Chart.Left }}" x2="{{ $.Chart.W }}" y1="{{ .Y }}" y2="{{ .Y }}"/>
+          <text class="axis-label" x="{{ $.Chart.AxisX }}" y="{{ .Y }}" text-anchor="end" dominant-baseline="middle">{{ .Label }}</text>
+        {{ end }}
+        {{ range .Bars }}
+          {{ if .Current }}<rect class="current-month" x="{{ .BandX }}" y="0" width="{{ .BandW }}" height="{{ $.Chart.Bottom }}" rx="6"/>{{ end }}
+          <g>
+            <title>{{ tf "%s: Einnahmen %s €, Ausgaben %s €" .Label (eur .Income) (eur .Outgoing) }}</title>
+            {{ if .InH }}<rect class="bar-in" x="{{ .InX }}" y="{{ .InY }}" width="{{ .BarW }}" height="{{ .InH }}" rx="2"/>{{ end }}
+            {{ if .OutH }}<rect class="bar-out" x="{{ .OutX }}" y="{{ .OutY }}" width="{{ .BarW }}" height="{{ .OutH }}" rx="2"/>{{ end }}
+            <rect x="{{ .BandX }}" y="0" width="{{ .BandW }}" height="{{ $.Chart.Bottom }}" fill="transparent"/>
+          </g>
+          <text class="axis-label" x="{{ .LabelX }}" y="{{ $.Chart.H }}" text-anchor="middle" dy="-4">{{ .Label }}</text>
+        {{ end }}
+      </svg>
+      {{ if .Empty }}<p class="meta">{{ t "Noch keine Buchungen in diesem Jahr." }}</p>{{ end }}
+      {{ end }}
+    </div>
+  </section>
+
+  <div class="grid">
+    {{ with .Threshold }}
+    <section class="card" aria-labelledby="ku-title">
+      <div class="card-head">
+        <h2 id="ku-title">{{ t "Kleinunternehmergrenze" }}</h2>
+        {{ if eq .Band "under" }}<span class="badge ok">{{ .PercentOfThreshold }} %</span>
+        {{ else if eq .Band "tolerance" }}<span class="badge warn">{{ t "Toleranz" }}</span>
+        {{ else }}<span class="badge danger">{{ t "überschritten" }}</span>{{ end }}
+      </div>
+      <div class="card-body">
+        {{ with $.Meter }}
+        <svg class="meter" viewBox="0 0 100 10" preserveAspectRatio="none" role="img"
+             aria-label="{{ t "Umsatz im Verhältnis zur Grenze" }}">
+          <rect class="track" x="0" y="0" width="100" height="10"/>
+          <rect class="fill-{{ .Band }}" x="0" y="0" width="{{ .FillPct }}" height="10"/>
+          <rect class="mark" x="{{ .ThresholdPct }}" y="0" width="0.5" height="10"/>
+          <rect class="mark" x="{{ .TolerancePct }}" y="0" width="0.5" height="10"/>
+        </svg>
+        {{ end }}
+        <div class="meter-scale"><span>0</span><span>{{ if eq lang "en" }}55,000 · 60,500{{ else }}55.000 · 60.500{{ end }}</span></div>
+        <p class="small spaced">
+          <strong class="num">{{ eur .RevenueCents }} €</strong> {{ t "Umsatz brutto." }}
+          {{ if eq .Band "under" }}{{ tf "Noch %s € bis zur Grenze." (eur .RemainingToThresholdCents) }}
+          {{ else if eq .Band "tolerance" }}{{ tf "Noch %s € bis zur Toleranzgrenze." (eur .RemainingToToleranceCents) }}
+          {{ else }}{{ t "Die Toleranzgrenze ist überschritten, siehe" }} <a href="/reports?year={{ .Year }}">{{ t "Auswertung" }}</a>.{{ end }}
+        </p>
+      </div>
+    </section>
+    {{ end }}
+
+    {{ if .Settings.SVSExemption }}{{ with .SVS }}{{ template "svs-card" . }}{{ end }}{{ end }}
+
+    <section class="card" aria-labelledby="todo-title">
+      <div class="card-head"><h2 id="todo-title">{{ t "Zu erledigen" }}</h2></div>
+      <ul class="todo">
+        <li><a href="/bank">
+          <span class="glyph {{ if .Unmatched }}warn{{ else }}ok{{ end }}">{{ template "icon" "bank" }}</span>
+          <span>{{ t "Offene Bankumsätze" }}<br><span class="meta">{{ t "ohne zugeordnete Buchung" }}</span></span>
+          <span class="count">{{ .Unmatched }}</span>
+        </a></li>
+        <li><a href="/invoices">
+          <span class="glyph {{ if .OverdueCents }}danger{{ else if .Invoices }}warn{{ else }}ok{{ end }}">{{ template "icon" "file" }}</span>
+          <span>{{ t "Offene Rechnungen" }}<br><span class="meta">{{ eur .OpenCents }} €{{ if .OverdueCents }}{{ tf ", davon %s € überfällig" (eur .OverdueCents) }}{{ end }}</span></span>
+          <span class="count">{{ len .Invoices }}</span>
+        </a></li>
+        <li><a href="/entries?beleg=fehlt&amp;year={{ .Year }}">
+          <span class="glyph {{ if .Missing }}warn{{ else }}ok{{ end }}">{{ template "icon" "clip" }}</span>
+          <span>{{ t "Belege fehlen" }}<br><span class="meta">{{ tf "Ausgaben %d ohne abgelegten Beleg" .Year }}</span></span>
+          <span class="count">{{ .Missing }}</span>
+        </a></li>
+        {{ with .Backup }}
+        <li><a href="/settings#backup">
+          <span class="glyph {{ if .Stale }}danger{{ else }}ok{{ end }}">{{ template "icon" "download" }}</span>
+          <span>{{ t "Datensicherung" }}<br><span class="meta">{{ if .Stale }}{{ tf "Letzte Sicherung: %s. Bitte sichern." (ago .Last) }}{{ else }}{{ tf "zuletzt %s" (ago .Last) }}{{ end }}</span></span>
+          <span class="count">{{ template "icon" "right" }}</span>
+        </a></li>
+        {{ end }}
+        <li><a href="/reports?year={{ .Year }}">
+          <span class="glyph">{{ template "icon" "download" }}</span>
+          <span>{{ t "Export für die Steuerberatung" }}<br><span class="meta">{{ if datev }}{{ t "CSV und DATEV" }}{{ else }}CSV{{ end }}</span></span>
+          <span class="count">{{ template "icon" "right" }}</span>
+        </a></li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<section class="card section" aria-labelledby="recent-title">
+  <div class="card-head">
+    <h2 id="recent-title">{{ t "Letzte Buchungen" }}</h2>
+    <a class="btn ghost sm" href="/entries?year={{ .Year }}">{{ t "Alle anzeigen" }} {{ template "icon" "right" }}</a>
+  </div>
+  {{ if .Entries }}
+  <ul class="ledger">{{ range .Entries }}{{ template "entry-row" . }}{{ end }}</ul>
+  {{ else }}
+  <div class="empty">{{ template "icon" "list" }}<p>{{ tf "Noch keine Buchungen in %d." .Year }}</p>
+    <a class="btn primary" href="/entries/new">{{ template "icon" "plus" }} {{ t "Erste Buchung erfassen" }}</a></div>
+  {{ end }}
+</section>
+{{ end }}

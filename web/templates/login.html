@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ t "Anmelden" }} — kmu-buchhaltung</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png" sizes="192x192" type="image/png">
+  <script src="/static/app.js"></script>
+</head>
+<body class="login-page">
+  <main class="login">
+    <div class="login-brand">
+      <span class="brand-mark"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V13M10 19V9M15 19V5M20 19H3"/></svg></span>
+      <div><strong>kmu-buchhaltung</strong><br><span class="meta">{{ t "Einnahmen-Ausgaben-Rechnung" }}</span></div>
+    </div>
+    <form method="post" action="/login" class="card card-body form">
+      <h1>{{ t "Anmelden" }}</h1>
+      {{ with .Error }}<div class="alert error" role="alert"><p>{{ . }}</p></div>{{ end }}
+      <input type="hidden" name="next" value="{{ index .Form "next" }}">
+      <label class="field"><span>{{ t "Passwort" }}</span>
+        <input type="password" name="password" required autofocus autocomplete="current-password">
+      </label>
+      <button type="submit" class="primary">{{ t "Anmelden" }}</button>
+    </form>
+    <p class="footer-note">{{ t "Version" }} {{ .Version }}</p>
+  </main>
+</body>
+</html>

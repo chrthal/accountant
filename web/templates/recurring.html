@@ -1,0 +1,25 @@
+{{ define "title" }}{{ t "Wiederkehrende Rechnungen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ t "wiederkehrend" }}</p>
+    <h1>{{ t "Wiederkehrende Rechnungen" }}</h1>
+    <p class="lede">{{ t "Vorlagen für Rechnungen, die regelmäßig fällig sind, etwa Hosting oder Wartung. Die App erinnert eine Woche vorher; geschrieben und verschickt wird die Rechnung von Ihnen. Mit dem Ausstellen rückt die nächste auf einen Zeitraum später." }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn primary" href="/recurring/new">{{ template "icon" "plus" }} {{ t "Neue wiederkehrende Rechnung" }}</a>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+<section class="card">
+  {{ if not .Recurring }}
+  <div class="empty">{{ template "icon" "clock" }}<p>{{ t "Noch keine wiederkehrenden Rechnungen." }}</p>
+    <p class="meta">{{ t "Am einfachsten aus einer ausgestellten Rechnung: dort „Als wiederkehrend anlegen“." }}</p></div>
+  {{ else }}
+  <ul class="ledger">{{ range .Recurring }}{{ template "recurring-row" . }}{{ end }}</ul>
+  {{ end }}
+</section>
+{{ end }}

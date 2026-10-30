@@ -1,0 +1,79 @@
+{{ define "title" }}{{ if index .Form "id" }}{{ t "Wiederkehrende Rechnung" }}{{ else }}{{ t "Neue wiederkehrende Rechnung" }}{{ end }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / <a href="/recurring">{{ t "wiederkehrend" }}</a></p>
+    <h1>{{ if index .Form "id" }}{{ index .Form "name" }}{{ else }}{{ t "Neue wiederkehrende Rechnung" }}{{ end }}</h1>
+    {{ with .RecurringOne }}<p class="lede">{{ template "interval" .Interval }} · {{ if .Active }}{{ tf "nächste am %s" (date .NextDue) }}{{ else }}{{ t "pausiert" }}{{ end }}{{ with .LastNumber }} · {{ tf "zuletzt %s" . }}{{ end }}</p>{{ end }}
+  </div>
+  {{ with .RecurringOne }}{{ if .Active }}
+  <div class="page-actions"><a class="btn primary" href="/invoices/new?recurring={{ .ID }}">{{ template "icon" "plus" }} {{ t "Rechnung erstellen" }}</a></div>
+  {{ end }}{{ end }}
+</header>
+
+<form method="post" action="{{ with index .Form "id" }}/recurring/{{ . }}{{ else }}/recurring{{ end }}" class="form">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Kunde & Rhythmus" }}</h2></div>
+    <div class="card-body form">
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Bezeichnung" }} <span class="hint">{{ t "z. B. Hosting, Wartungsvertrag" }}</span></span>
+          <input type="text" name="name" required maxlength="100" value="{{ index .Form "name" }}"></label>
+        <label class="field"><span>{{ t "Kunde" }}</span>
+          <select name="contact_id" required>
+            <option value="">{{ t "— bitte wählen —" }}</option>
+            {{ range .Contacts }}<option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (index $.Form "contact_id") }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Rhythmus" }}</span>
+          <select name="interval">
+            {{ $iv := index .Form "interval" }}
+            {{ range intervals }}<option value="{{ . }}" {{ if eq . $iv }}selected{{ end }}>{{ template "interval" . }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Nächste Rechnung am" }} <span class="hint">{{ t "auch das Leistungsdatum" }}</span></span>
+          <input type="text" name="next_due" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "next_due") }}"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="active" value="1" {{ if eq (index .Form "active") "1" }}checked{{ end }}>
+        <span>{{ t "aktiv" }} <span class="hint">{{ t "pausiert erinnert die App nicht" }}</span></span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Positionen" }}</h2><span class="meta">{{ t "{Zeitraum} wird durch den Monat, das Quartal oder das Jahr ersetzt, z. B. „Hosting {Zeitraum}“" }}</span></div>
+    <div class="card-body">
+      <div class="lines" id="lines">
+        {{ range $i, $l := .Lines }}{{ template "invoice-line" (lineCtx $i $l $.Settings.Kleinunternehmer) }}{{ end }}
+      </div>
+      <div class="actions">
+        <button type="button" class="sm" data-add-line="lines" data-template="line-template" hidden>{{ template "icon" "plus" }} {{ t "Position hinzufügen" }}</button>
+      </div>
+      <template id="line-template">{{ template "invoice-line" (lineCtx -1 (blankLine (index .Form "default_rate")) .Settings.Kleinunternehmer) }}</template>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-body form">
+      <label class="field"><span>{{ t "Anmerkung" }} <span class="hint">{{ t "optional, steht links neben dem Zahlungshinweis" }}</span></span>
+        <textarea name="note" rows="3">{{ index .Form "note" }}</textarea></label>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Speichern" }}</button>
+    <a class="btn ghost" href="/recurring">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+
+{{ with .RecurringOne }}
+<section class="card section form-card">
+  <div class="card-body actions">
+    {{ if .Active }}
+    <form method="post" action="/recurring/{{ .ID }}/skip" class="inline-form" data-confirm="{{ tf "Den Zeitraum %s ohne Rechnung überspringen?" .Period }}"><button type="submit" class="sm">{{ tf "Zeitraum %s überspringen" .Period }}</button></form>
+    <form method="post" action="/recurring/{{ .ID }}/pause" class="inline-form"><button type="submit" class="sm ghost">{{ t "Pausieren" }}</button></form>
+    {{ else }}
+    <form method="post" action="/recurring/{{ .ID }}/resume" class="inline-form"><button type="submit" class="sm">{{ t "Fortsetzen" }}</button></form>
+    {{ end }}
+    <form method="post" action="/recurring/{{ .ID }}/delete" class="inline-form" data-confirm="{{ t "Wiederkehrende Rechnung löschen? Ausgestellte Rechnungen bleiben." }}"><button type="submit" class="sm ghost danger">{{ template "icon" "trash" }} {{ t "Löschen" }}</button></form>
+  </div>
+</section>
+{{ end }}
+{{ end }}

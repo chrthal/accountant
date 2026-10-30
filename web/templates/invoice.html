@@ -1,0 +1,94 @@
+{{ define "title" }}{{ tf "Rechnung %s" .Invoice.Number }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+{{ $inv := .Invoice }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ $inv.Number }}</p>
+    <h1>{{ $inv.RecipientName }}</h1>
+    <p class="lede">{{ tf "Rechnung %s vom %s" $inv.Number (date $inv.IssueDate) }}
+      · {{ template "invoice-status" $inv }}{{ if $inv.Imported }} · <span class="badge">{{ t "importiert" }}</span>{{ end }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="/invoices/new?from={{ $inv.ID }}">{{ template "icon" "copy" }} {{ t "Als Vorlage" }}</a>
+    <a class="btn" href="/recurring/new?from={{ $inv.ID }}">{{ template "icon" "clock" }} {{ t "Als wiederkehrend anlegen" }}</a>
+    <a class="btn primary" href="/invoices/{{ $inv.ID }}/pdf">{{ template "icon" "download" }} {{ if $inv.Imported }}{{ t "Original-PDF" }}{{ else }}PDF{{ end }}</a>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+<div class="cols-main">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Positionen" }}</h2></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>{{ t "Pos" }}</th><th>{{ t "Beschreibung" }}</th><th class="r">{{ t "Menge" }}</th><th class="r">{{ t "Einzelpreis" }}</th><th class="r">{{ t "USt" }}</th><th class="r">{{ t "Netto" }}</th></tr></thead>
+        <tbody>
+          {{ range $inv.Lines }}
+          <tr><td>{{ .Position }}</td><td>{{ .Description }}</td>
+            <td class="r num">{{ qty .QuantityMilli }} {{ .Unit }}</td>
+            <td class="r amount">{{ eur .UnitPriceCents }}</td>
+            <td class="r num">{{ .VATRate }} %</td>
+            <td class="r amount">{{ eur .NetCents }}</td></tr>
+          {{ end }}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="5">{{ t "Netto" }}</td><td class="r amount">{{ eur $inv.NetCents }}</td></tr>
+          {{ if not $inv.Kleinunternehmer }}{{ range .VATGroups }}
+          <tr><td colspan="5">{{ tf "USt %d %% auf %s" .Rate (eur .NetCents) }}</td><td class="r amount">{{ eur .VATCents }}</td></tr>
+          {{ end }}{{ end }}
+          <tr><td colspan="5">{{ t "Gesamtbetrag" }}</td><td class="r amount">{{ eur $inv.GrossCents }} €</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    {{ with $inv.Note }}<div class="card-foot small">{{ . }}</div>{{ end }}
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="card-head"><h2>{{ t "Zahlung" }}</h2>{{ template "invoice-status" $inv }}</div>
+      <dl class="sheet">
+        <div><dt>{{ t "Gesamt" }}</dt><dd class="amount">{{ eur $inv.GrossCents }} €</dd></div>
+        <div><dt>{{ t "Bezahlt" }}</dt><dd class="amount">{{ eur $inv.PaidCents }} €{{ with $inv.LastPaidOn }} <span class="meta">{{ tf "am %s" (date .) }}</span>{{ end }}</dd></div>
+        <div><dt>{{ t "Offen" }}</dt><dd class="amount">{{ eur $inv.OpenCents }} €</dd></div>
+        <div><dt>{{ t "Zahlbar bis" }}</dt><dd>{{ with $inv.DueDate }}{{ date . }}{{ else }}<span class="muted">{{ t "nicht angegeben" }}</span>{{ end }}</dd></div>
+      </dl>
+      {{ if not $inv.IsPaid }}
+      <form method="post" action="/invoices/{{ $inv.ID }}/payment" class="card-foot form">
+        <p class="note">{{ t "Bucht den Zahlungseingang als Einnahme, eine Buchung je USt-Satz, am Tag des Geldeingangs. Ein kleinerer Betrag ist eine Teilzahlung; die Rechnung bleibt mit dem Rest offen." }}</p>
+        <div class="fields-2">
+          <label class="field"><span>{{ t "Betrag (€)" }} <span class="hint">{{ tf "offen: %s €" (eur $inv.OpenCents) }}</span></span>
+            <input class="amount-input" type="text" name="amount" inputmode="decimal" required value="{{ with index .Form "amount" }}{{ . }}{{ else }}{{ eur $inv.OpenCents }}{{ end }}"></label>
+          <label class="field"><span>{{ t "Geldeingang am" }}</span>
+            <input type="text" name="paid_on" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "paid_on") }}"></label>
+          <label class="field"><span>{{ t "Kategorie" }} <span class="hint">{{ t "optional" }}</span></span>
+            <select name="category_id"><option value="">—</option>
+              {{ range .Categories }}{{ if ne .Direction "outgoing" }}<option value="{{ .ID }}">{{ .Name }}</option>{{ end }}{{ end }}
+            </select></label>
+        </div>
+        <div><button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Zahlung buchen" }}</button></div>
+      </form>
+      {{ end }}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{{ t "Parteien" }}</h2></div>
+      <dl class="sheet">
+        <div><dt>{{ t "Empfänger" }}</dt><dd>{{ $inv.RecipientName }}<br><span class="small muted">{{ $inv.RecipientAddress }}</span>{{ with $inv.RecipientUID }}<br><span class="small">UID {{ . }}</span>{{ end }}</dd></div>
+        <div><dt>{{ t "Aussteller" }}</dt><dd>{{ $inv.IssuerName }}{{ with $inv.IssuerUID }}<br><span class="small">UID {{ . }}</span>{{ end }}</dd></div>
+        <div><dt>{{ t "Leistung" }}</dt><dd>{{ date $inv.ServiceDate }}</dd></div>
+      </dl>
+    </section>
+  </div>
+</div>
+
+{{ if .Entries }}
+<section class="card section">
+  <div class="card-head"><h2>{{ t "Gebuchte Zahlungen" }}</h2></div>
+  <ul class="ledger">{{ range .Entries }}{{ template "entry-row" . }}{{ end }}</ul>
+  <div class="card-foot note">{{ t "Eine falsch gebuchte Zahlung wird storniert. Danach ist die Rechnung wieder offen und kann neu gebucht werden." }}</div>
+</section>
+{{ end }}
+{{ end }}
+

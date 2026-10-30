@@ -1,0 +1,19 @@
+# Runs the exact vet+test invocation CI runs, in the builder image, so local
+# "passes" and CI "passes" mean the same thing.
+#   make test-container
+# or: docker compose -f compose.yaml -f compose.test.yaml run --rm test
+
+services:
+  test:
+    build:
+      context: .
+      target: build
+    working_dir: /src
+    environment:
+      TZ: Europe/Vienna
+      # Container filesystems are throwaway; keeping the caches inside the
+      # image layer avoids needing a mounted cache volume.
+      GOFLAGS: -buildvcs=false
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["go vet ./... && go test ./..."]
+    profiles: ["test"]

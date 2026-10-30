@@ -1,0 +1,39 @@
+{{ define "title" }}{{ t "Rechnung importieren" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ t "importieren" }}</p>
+    <h1>{{ t "Rechnung importieren" }}</h1>
+    <p class="lede">{{ t "Für den Umstieg: Rechnungen, die mit einem anderen Programm geschrieben wurden, mit ihrer Original-PDF übernehmen. Sie zählen dann bei offenen Posten, Zahlungen, Auswertung und Archiv mit, und die Original-PDF bleibt ihr Dokument." }}</p>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+{{ with .QueuedImports }}<div class="alert notice">{{ template "icon" "clock" }}
+  <p>{{ tf "%d Rechnung(en) warten auf die Prüfung." . }} <a href="/invoices/import/review">{{ t "Jetzt prüfen" }}</a></p></div>{{ end }}
+
+<form method="post" action="/invoices/import" enctype="multipart/form-data" class="card card-body form form-card">
+  <label class="field"><span>{{ t "Rechnung als PDF" }} <span class="hint">{{ t "bis 10 MiB" }}</span></span>
+    <input type="file" name="original" accept="application/pdf,.pdf" required></label>
+  {{ if .PDFAvailable }}
+  <p class="note">{{ t "Nummer, Datum, Betrag und Empfänger werden aus der PDF gelesen und im nächsten Schritt zur Kontrolle angezeigt. Gespeichert wird erst nach dem Bestätigen." }}</p>
+  {{ else }}
+  <p class="note">{{ t "Auf diesem Server ist kein PDF-Leseprogramm installiert. Die Angaben werden im nächsten Schritt von Hand eingetragen." }}</p>
+  {{ end }}
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "upload" }} {{ t "PDF einlesen" }}</button>
+    <a class="btn ghost" href="/invoices">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+
+<form method="post" action="/invoices/import/batch" enctype="multipart/form-data" class="card card-body form form-card section">
+  <h2>{{ t "Mehrere Rechnungen auf einmal" }}</h2>
+  <label class="field"><span>{{ t "Rechnungen als PDF" }} <span class="hint">{{ tf "mehrere auswählen, bis %d auf der Warteliste" maxQueued }}</span></span>
+    <input type="file" name="originals" accept="application/pdf,.pdf" multiple required></label>
+  <p class="note">{{ t "Alle Dateien werden eingelesen und kommen auf eine Warteliste. Dort prüft man sie in einer Liste und importiert die angehakten. Jede Rechnung bekommt eine Position mit ihrem Gesamtbetrag; wo die Positionen wichtig sind, öffnet man sie einzeln." }}</p>
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "upload" }} {{ t "PDFs einlesen" }}</button>
+  </div>
+</form>
+{{ end }}

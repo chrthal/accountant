@@ -1,0 +1,88 @@
+# Runtime-agnostic: works under `docker compose` and rootless podman (ADR 0005).
+# No `version:` key, no container_name, no Docker-only options, and named
+# volumes rather than bind mounts — bind mounts break under podman's rootless
+# UID remapping.
+#
+# This is the Postgres path, which is what a real deployment runs (ADR 0006).
+# For the SQLite path, add the override:
+#   docker compose -f compose.yaml -f compose.sqlite.yaml up --build
+
+services:
+  db:
+    image: docker.io/library/postgres:17-alpine
+    environment:
+      POSTGRES_USER: bookkeeper
+      POSTGRES_PASSWORD: bookkeeper
+      POSTGRES_DB: bookkeeper
+      TZ: Europe/Vienna
+    volumes:
+      - bookkeeper-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookkeeper -d bookkeeper"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      args:
+        VERSION: dev
+    image: ghcr.io/chrthal/accountant:dev
+    ports:
+      # Host side from BOOKKEEPER_PORT (the Makefile sets it from PORT).
+      - "${BOOKKEEPER_PORT:-8080}:8080"
+    environment:
+      BOOKKEEPER_DSN: postgres://bookkeeper:bookkeeper@db:5432/bookkeeper?sslmode=disable
+      # Login for the whole app (ADR 0017). Empty = open, which logs a warning.
+      BOOKKEEPER_PASSWORD: ${BOOKKEEPER_PASSWORD:-}
+      # Daily backups, the newest 30 kept (ADR 0019). A volume of its own,
+      # so dropping the data volume does not take the backups with it.
+      # Copy them off this host too: a backup on the same disk does not
+      # survive the disk.
+      BOOKKEEPER_BACKUP_DIR: /backups
+      BOOKKEEPER_BACKUP_KEEP: ${BOOKKEEPER_BACKUP_KEEP:-30}
+      # Booking suggestions from a local model (ADR 0020), off when empty.
+      # With the llm profile: BOOKKEEPER_LLM_URL=http://ollama:11434
+      BOOKKEEPER_LLM_URL: ${BOOKKEEPER_LLM_URL:-}
+      BOOKKEEPER_LLM_MODEL: ${BOOKKEEPER_LLM_MODEL:-qwen2.5:3b}
+      # Email reminders to the owner (ADR 0039), off without a host. Put the
+      # password in a file and name it in BOOKKEEPER_SMTP_PASSWORD_FILE.
+      BOOKKEEPER_SMTP_HOST: ${BOOKKEEPER_SMTP_HOST:-}
+      BOOKKEEPER_SMTP_PORT: ${BOOKKEEPER_SMTP_PORT:-}
+      BOOKKEEPER_SMTP_TLS: ${BOOKKEEPER_SMTP_TLS:-}
+      BOOKKEEPER_SMTP_USER: ${BOOKKEEPER_SMTP_USER:-}
+      BOOKKEEPER_SMTP_FROM: ${BOOKKEEPER_SMTP_FROM:-}
+      BOOKKEEPER_SMTP_PASSWORD_FILE: ${BOOKKEEPER_SMTP_PASSWORD_FILE:-}
+      BOOKKEEPER_PUBLIC_URL: ${BOOKKEEPER_PUBLIC_URL:-}
+      TZ: Europe/Vienna
+    # The image declares VOLUME /data. Without a named volume here, every
+    # `up` on the Postgres path leaves a new anonymous volume that `down`
+    # never removes.
+    volumes:
+      - bookkeeper-data:/data
+      - bookkeeper-backups:/backups
+    # Plain depends_on, not `condition: service_healthy` — podman-compose's
+    # support for conditions is uneven, and the app already retries the initial
+    # Postgres connection for ~10s, which covers a cold start.
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # Optional local model for booking suggestions (ADR 0020). Start with
+  #   BOOKKEEPER_LLM_URL=http://ollama:11434 make up-llm
+  # The model (~2 GB) is pulled on first use by `make llm-pull`. It needs
+  # 2-3 GB of RAM while it answers and runs on the CPU.
+  ollama:
+    image: docker.io/ollama/ollama:0.40.3
+    profiles: ["llm"]
+    volumes:
+      - bookkeeper-ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  bookkeeper-db:
+  bookkeeper-data:
+  bookkeeper-backups:
+  bookkeeper-ollama:

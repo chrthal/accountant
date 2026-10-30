@@ -1,0 +1,262 @@
+{{ define "title" }}{{ t "Einstellungen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Stammdaten" }}</p>
+    <h1>{{ t "Einstellungen" }}</h1>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+<form method="post" action="/settings" class="form">
+  <section class="card form-card">
+    <div class="card-head"><h2>{{ t "Rechnungssteller" }}</h2></div>
+    <div class="card-body form">
+      <p class="note">{{ t "Diese Angaben stehen auf jeder Rechnung (§ 11 Abs 1 UStG). Sie werden beim Ausstellen in die Rechnung kopiert. Eine spätere Änderung wirkt nur auf neue Rechnungen, bereits ausgestellte bleiben unverändert." }}</p>
+      <label class="field"><span>{{ t "Name des Rechnungsstellers" }}</span>
+        <input type="text" name="issuer_name" required value="{{ .Settings.IssuerName }}"></label>
+      <label class="field"><span>{{ t "Adresse" }}</span>
+        <textarea name="issuer_address" rows="3">{{ .Settings.IssuerAddress }}</textarea></label>
+      <label class="field"><span>{{ t "UID-Nummer" }}</span>
+        <input type="text" name="issuer_uid" value="{{ .Settings.IssuerUID }}" placeholder="ATU12345678"></label>
+      <div class="fields-2">
+        <label class="field"><span>IBAN <span class="hint">{{ t "für Zahlungshinweis und QR-Code" }}</span></span>
+          <input type="text" name="issuer_iban" value="{{ .Settings.IssuerIBAN }}" placeholder="{{ t "AT12 3456 7890 1234 5678" }}"></label>
+        <label class="field"><span>BIC <span class="hint">{{ t "optional" }}</span></span>
+          <input type="text" name="issuer_bic" value="{{ .Settings.IssuerBIC }}" placeholder="ABCDATWWXXX"></label>
+      </div>
+      <label class="field"><span>{{ t "Kontakt für die Fußzeile" }} <span class="hint">{{ t "optional, z. B. Telefon, Erreichbarkeit, E-Mail" }}</span></span>
+        <textarea name="issuer_contact" rows="3">{{ .Settings.IssuerContact }}</textarea></label>
+      <label class="field"><span>{{ t "Zahlungsziel (Tage)" }}</span>
+        <input type="text" name="payment_terms_days" inputmode="numeric"
+               value="{{ if .Settings.PaymentTermsDays }}{{ .Settings.PaymentTermsDays }}{{ else }}14{{ end }}"></label>
+    </div>
+  </section>
+
+  <section class="card form-card">
+    <div class="card-head"><h2>{{ t "Rechnungsnummern" }}</h2></div>
+    <div class="card-body form">
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Schema" }}</span>
+          <select name="invoice_numbering">
+            <option value="day" {{ if eq .Settings.InvoiceNumbering "day" }}selected{{ end }}>{{ t "Präfix + Datum + Nummer des Tages (E260112001)" }}</option>
+            <option value="year" {{ if ne .Settings.InvoiceNumbering "day" }}selected{{ end }}>{{ t "Präfix + Jahr + laufende Nummer (2026-0001)" }}</option>
+          </select></label>
+        <label class="field"><span>{{ t "Präfix" }} <span class="hint">{{ t "optional, bis 8 Buchstaben oder Ziffern" }}</span></span>
+          <input type="text" name="invoice_prefix" value="{{ .Settings.InvoicePrefix }}" maxlength="8" placeholder="E"></label>
+      </div>
+      <p class="note">{{ t "Mit dem Datums-Schema zählt die Nummer nur innerhalb eines Tages. Kundinnen und Kunden sehen so nicht, wie viele Rechnungen im Jahr geschrieben wurden. Jede Nummer bleibt eindeutig, wie § 11 UStG es verlangt. Eine Änderung gilt für neue Rechnungen, ausgestellte behalten ihre Nummer. Ob ein Nummernkreis pro Tag passt, im Zweifel mit der Steuerberatung klären." }}</p>
+    </div>
+  </section>
+
+  <section class="card form-card">
+    <div class="card-head"><h2>{{ t "Anzeige" }}</h2></div>
+    <div class="card-body form">
+      <label class="field"><span>{{ t "Sprache" }}</span>
+        <select name="language">
+          {{ range $code, $name := languages }}<option value="{{ $code }}" {{ if or (eq $code $.Settings.Language) (and (eq $code "de") (eq $.Settings.Language "")) }}selected{{ end }}>{{ $name }}</option>{{ end }}
+        </select>
+      </label>
+      <label class="field"><span>{{ t "Datumsformat" }}</span>
+        <select name="date_format">
+          {{ $cur := .Settings.DateFormat }}
+          {{ range $layout, $label := dateFormats }}<option value="{{ $layout }}" {{ if eq $layout $cur }}selected{{ end }}>{{ $label }}</option>{{ end }}
+        </select>
+      </label>
+      <p class="note">{{ t "Gilt für alle angezeigten Daten. Exporte bleiben im Format JJJJ-MM-TT, Rechnungen im österreichischen Format TT.MM.JJJJ." }}</p>
+    </div>
+  </section>
+
+  <section class="card form-card">
+    <div class="card-head"><h2>{{ t "Umsatzsteuer" }}</h2></div>
+    <div class="card-body form">
+      <label class="field"><span>{{ t "Standard-USt-Satz für Ausgaben" }}
+        <span class="hint">{{ t "wenn weder eine frühere Buchung noch die Kategorie einen Satz vorgibt" }}</span></span>
+        <select name="default_vat_outgoing">
+          {{ $d := .Settings.DefaultVATOutgoing }}
+          {{ range vatRates }}<option value="{{ . }}" {{ if eq . $d }}selected{{ end }}>{{ . }} %</option>{{ end }}
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="kleinunternehmer" value="1" {{ if .Settings.Kleinunternehmer }}checked{{ end }}>
+        <span>{{ t "Kleinunternehmerregelung (§ 6 Abs 1 Z 27 UStG)" }}</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="svs_exemption" value="1" {{ if .Settings.SVSExemption }}checked{{ end }}>
+        <span>{{ t "SVS-Ausnahme für Kleinunternehmer beantragt" }} <span class="hint">{{ t "zeigt die SVS-Grenzen in der Übersicht" }}</span></span>
+      </label>
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Gilt seit" }} <span class="hint">{{ t "optional, leer = von Anfang an" }}</span></span>
+          <input type="text" name="kleinunternehmer_from" autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (.Settings.KleinunternehmerFrom) }}"></label>
+        <label class="field"><span>{{ t "Galt bis" }} <span class="hint">{{ t "nötig beim Abschalten" }}</span></span>
+          <input type="text" name="kleinunternehmer_until" autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (.Settings.KleinunternehmerUntil) }}"></label>
+      </div>
+      <p class="note">{{ t "Ausgaben aus der Zeit der Kleinunternehmerregelung behalten ihren USt-Satz vom Beleg, die USt wird aber nie als Vorsteuer gerechnet. Endet die Regelung, bitte das letzte Datum unter „Galt bis“ eintragen: bei Überschreiten der Toleranzgrenze ist das der Tag der Buchung, mit der die Grenze überschritten wurde (siehe Auswertung), sonst der 31.12. Ab dem Folgetag rechnet die App ganz normal mit USt und Vorsteuer." }}</p>
+      <p class="note">{{ t "Ist die Kleinunternehmerregelung aktiv, werden Rechnungen ohne Umsatzsteuer ausgestellt und tragen stattdessen den Befreiungshinweis. Die Grenze liegt bei 55.000 € brutto pro Jahr (Toleranz bis 60.500 €). Die" }}
+        <a href="/reports">{{ t "Auswertung" }}</a> {{ t "und die Übersicht zeigen, wo das Jahr steht." }}</p>
+    </div>
+  </section>
+
+  <section class="card form-card" id="notify">
+    <div class="card-head"><h2>{{ t "Benachrichtigungen per E-Mail" }}</h2>{{ if or .MailServer .StoredMail }}<span class="badge ok">{{ t "Mailserver eingerichtet" }}</span>{{ end }}</div>
+    <div class="card-body form">
+      <p class="note">{{ t "Erinnerungen gehen nur an diese eine Adresse, nie an Kunden. Jede kommt einmal, mehrere zusammen in einer E-Mail." }}</p>
+      <label class="field"><span>{{ t "An" }} <span class="hint">{{ t "leer = keine E-Mails" }}</span></span>
+        <input type="email" name="notify_email" value="{{ .Settings.NotifyEmail }}" placeholder="{{ t "name@beispiel.at" }}"></label>
+      <label class="check"><input type="checkbox" name="notify_recurring" value="1" {{ if .Settings.NotifyRecurring }}checked{{ end }}>
+        <span>{{ t "Wiederkehrende Rechnungen" }} <span class="hint">{{ t "eine Woche vorher und am Fälligkeitstag" }}</span></span></label>
+      <label class="check"><input type="checkbox" name="notify_overdue" value="1" {{ if .Settings.NotifyOverdue }}checked{{ end }}>
+        <span>{{ t "Überfällige Rechnungen" }}</span></label>
+      <label class="check"><input type="checkbox" name="notify_backup" value="1" {{ if .Settings.NotifyBackup }}checked{{ end }}>
+        <span>{{ t "Datensicherung" }} <span class="hint">{{ t "fehlgeschlagen, oder älter als eine Woche" }}</span></span></label>
+      <label class="check"><input type="checkbox" name="notify_queues" value="1" {{ if .Settings.NotifyQueues }}checked{{ end }}>
+        <span>{{ t "Wartende Belege und importierte Rechnungen" }} <span class="hint">{{ t "nach einem Tag auf der Warteliste" }}</span></span></label>
+
+      <h3 class="subhead">{{ t "Mailserver" }}</h3>
+      {{ if .MailServer }}
+      <p class="note">{{ t "Über Umgebungsvariablen eingerichtet, hier nur zur Ansicht:" }} <span class="meta">{{ .MailServer }}</span></p>
+      {{ else }}
+      {{ $m := .StoredMail }}
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Server" }}</span>
+          <input type="text" name="smtp_host" autocomplete="off" placeholder="{{ t "mail.beispiel.at" }}" value="{{ with $m }}{{ .Host }}{{ end }}"></label>
+        <label class="field"><span>{{ t "Verschlüsselung" }}</span>
+          <select name="smtp_tls">
+            {{ $tls := "starttls" }}{{ with $m }}{{ $tls = .TLS }}{{ end }}
+            <option value="starttls" {{ if eq $tls "starttls" }}selected{{ end }}>{{ t "STARTTLS (meist Port 587)" }}</option>
+            <option value="tls" {{ if eq $tls "tls" }}selected{{ end }}>{{ t "TLS (meist Port 465)" }}</option>
+            <option value="none" {{ if eq $tls "none" }}selected{{ end }}>{{ t "keine (nur für einen Mailserver auf diesem Rechner)" }}</option>
+          </select></label>
+        <label class="field"><span>{{ t "Port" }} <span class="hint">{{ t "leer = passend zur Verschlüsselung" }}</span></span>
+          <input type="text" name="smtp_port" inputmode="numeric" value="{{ with $m }}{{ .Port }}{{ end }}"></label>
+        <label class="field"><span>{{ t "Benutzer" }}</span>
+          <input type="text" name="smtp_user" autocomplete="off" value="{{ with $m }}{{ .User }}{{ end }}"></label>
+        <label class="field"><span>{{ t "Passwort" }} {{ if and $m $m.HasPassword }}<span class="hint">{{ t "gespeichert; leer lassen, um es zu behalten" }}</span>{{ end }}</span>
+          <input type="password" name="smtp_password" autocomplete="new-password" value=""></label>
+        <label class="field"><span>{{ t "Absender" }} <span class="hint">{{ t "leer = der Benutzer" }}</span></span>
+          <input type="text" name="smtp_from" autocomplete="off" placeholder="{{ t "buchhaltung@beispiel.at" }}" value="{{ with $m }}{{ .From }}{{ end }}"></label>
+      </div>
+      <p class="note">{{ t "Das Passwort wird nie wieder angezeigt. Sicherungen und das Jahresarchiv enthalten den Mailserver nicht; nach einer Wiederherstellung wird er neu eingetragen." }}</p>
+      {{ end }}
+      <div class="actions">
+        <button type="submit" formaction="/settings/notify-test" formnovalidate class="sm">{{ template "icon" "check" }} {{ t "Test-Mail senden" }}</button>
+        {{ if .StoredMail }}{{ if not .MailServer }}<button type="submit" formaction="/settings/mail-delete" formnovalidate class="sm ghost danger" data-confirm="{{ t "Mailserver samt Passwort entfernen?" }}">{{ t "Mailserver entfernen" }}</button>{{ end }}{{ end }}
+      </div>
+      <p class="meta">{{ t "Die Test-Mail nimmt, was hier eingetragen ist, auch vor dem Speichern." }}</p>
+    </div>
+  </section>
+
+  <section class="card form-card">
+    <div class="card-head"><h2>{{ t "DATEV-Export" }}</h2></div>
+    <div class="card-body form">
+      <label class="check">
+        <input type="checkbox" name="datev_enabled" value="1" {{ if .Settings.DATEV }}checked{{ end }}>
+        <span>{{ t "DATEV-Export verwenden" }} <span class="hint">{{ t "zeigt den Export und die Felder Konto/Gegenkonto bei Buchungen und Kategorien" }}</span></span>
+      </label>
+      {{ if .Settings.DATEV }}
+      <p class="note">{{ t "Diese drei Angaben kommen von der Steuerberatung. Ohne sie wird kein DATEV-Export erzeugt. Eine Datei mit erfundenen Nummern würde in die falschen Bücher importiert." }}</p>
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Berater-Nummer" }}</span>
+          <input type="text" name="datev_consultant_number" inputmode="numeric" value="{{ .Settings.DATEVConsultantNumber }}"></label>
+        <label class="field"><span>{{ t "Mandanten-Nummer" }}</span>
+          <input type="text" name="datev_client_number" inputmode="numeric" value="{{ .Settings.DATEVClientNumber }}"></label>
+      </div>
+      <label class="field"><span>{{ t "Sachkontenlänge" }}</span>
+        <input type="text" name="datev_account_length" inputmode="numeric"
+               value="{{ if .Settings.DATEVAccountLength }}{{ .Settings.DATEVAccountLength }}{{ else }}4{{ end }}"></label>
+      {{ else }}
+      {{/* Hidden, not dropped: saving the settings must not erase them. */}}
+      <input type="hidden" name="datev_consultant_number" value="{{ .Settings.DATEVConsultantNumber }}">
+      <input type="hidden" name="datev_client_number" value="{{ .Settings.DATEVClientNumber }}">
+      <input type="hidden" name="datev_account_length" value="{{ .Settings.DATEVAccountLength }}">
+      <p class="note">{{ t "Ausgeschaltet. Wer mit BMD, RZL oder nur mit der CSV-Datei arbeitet, braucht DATEV nicht. Bereits eingetragene Konten bleiben gespeichert." }}</p>
+      {{ end }}
+    </div>
+  </section>
+
+  <div class="actions form-card">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Einstellungen speichern" }}</button>
+  </div>
+</form>
+
+<section class="card form-card section" id="invoice-layout" aria-labelledby="logo-title">
+  <div class="card-head"><h2 id="logo-title">{{ t "Logo auf Rechnungen" }}</h2></div>
+  <div class="card-body form">
+    {{ if .HasLogo }}
+    <div class="logo-preview"><img src="/settings/logo" alt="{{ t "aktuelles Logo" }}"></div>
+    {{ end }}
+    <form method="post" action="/settings/logo" enctype="multipart/form-data" class="form">
+      <label class="field"><span>{{ if .HasLogo }}{{ t "Neues Logo" }}{{ else }}{{ t "Logo" }}{{ end }} <span class="hint">{{ t "PNG oder JPEG, bis 1 MiB, am besten mit transparentem Hintergrund" }}</span></span>
+        <input type="file" name="logo" accept="image/png,image/jpeg" required></label>
+      <div class="actions"><button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Logo hochladen" }}</button></div>
+    </form>
+    {{ if .HasLogo }}
+    <form method="post" action="/settings/logo/delete" data-confirm="{{ t "Logo entfernen? Rechnungs-PDFs erscheinen dann ohne Logo." }}">
+      <button type="submit" class="danger sm">{{ t "Logo entfernen" }}</button>
+    </form>
+    {{ end }}
+    <p class="note">{{ t "Das Logo steht oben links auf jedem Rechnungs-PDF, auch auf bereits ausgestellten, wenn sie erneut geöffnet werden. Es ist Gestaltung, kein Pflichtinhalt der Rechnung." }}</p>
+  </div>
+</section>
+
+<section class="card form-card section" id="export" aria-labelledby="export-title">
+  <div class="card-head"><h2 id="export-title">{{ t "Export für die Steuerberatung" }}</h2></div>
+  <div class="card-body">
+    <form method="get" action="/export/csv" class="form">
+      <label class="field"><span>{{ t "Jahr" }}</span>
+        <select name="year">
+          {{ range .Years }}<option value="{{ . }}" {{ if eq . $.Year }}selected{{ end }}>{{ . }}</option>{{ end }}
+        </select></label>
+      <div class="actions">
+        <button type="submit" class="primary">{{ template "icon" "download" }} {{ t "CSV für die Steuerberatung" }}</button>
+        <button type="submit" formaction="/export/archive">{{ template "icon" "download" }} {{ t "Archiv mit Belegen (ZIP)" }}</button>
+        {{ if datev }}<button type="submit" formaction="/export/datev">{{ template "icon" "download" }} {{ t "DATEV EXTF Buchungsstapel" }}</button>{{ end }}
+      </div>
+    </form>
+    <p class="note">{{ t "Das Archiv enthält die CSV, alle Belege und alle Rechnungen des Jahres als PDF. Zahlen und Hinweise zum Jahr stehen unter" }} <a href="/reports">{{ t "Auswertung" }}</a>.</p>
+  </div>
+</section>
+
+{{ with .Backup }}
+<section class="card form-card section" id="backup" aria-labelledby="backup-title">
+  <div class="card-head"><h2 id="backup-title">{{ t "Datensicherung" }}</h2>
+    {{ if .Stale }}<span class="badge danger">{{ ago .Last }}</span>{{ else }}<span class="badge ok">{{ ago .Last }}</span>{{ end }}</div>
+  <div class="card-body form">
+    <p class="note">{{ t "Die Sicherung enthält alle Buchungen, Rechnungen, Bankumsätze, Kontakte, Einstellungen" }}
+      <strong>{{ t "und alle Belege" }}</strong>{{ t ". Belege müssen sieben Jahre aufbewahrt werden (§ 132 BAO). Bewahren Sie Sicherungen deshalb auch außerhalb dieses Servers auf." }}</p>
+    <div class="actions"><a class="btn primary" href="/backup">{{ template "icon" "download" }} {{ t "Sicherung herunterladen" }}</a></div>
+    <p class="note">{{ t "Die Sicherung stellt die App wieder her und braucht dafür die App. Zum Lesen ohne die App, zum Weitergeben und Aufbewahren gibt es je Jahr ein Archiv mit CSV, Belegen und Rechnungen unter" }} <a href="/reports">{{ t "Auswertung" }}</a>.</p>
+    {{ if .Dir }}
+    <p class="note"><strong>{{ t "Automatisch:" }}</strong> {{ t "täglich nach" }} <code>{{ .Dir }}</code>{{ tf ", die letzten %d werden behalten. Neueste dort: %s." .Keep (ago .NewestDir) }}</p>
+    {{ else }}
+    <p class="note"><strong>{{ t "Automatisch:" }}</strong> {{ t "aus. Mit" }} <code>{{ "BOOKKEEPER_BACKUP_DIR" }}</code> {{ t "sichert die App täglich in ein Verzeichnis (siehe README)." }}</p>
+    {{ end }}
+    {{ if $.Fresh }}
+    <div class="restore" id="restore">
+      <h3>{{ t "Sicherung wiederherstellen" }}</h3>
+      <p class="note">{{ t "Diese Installation ist neu und leer. Eine Sicherung bringt alle Buchungen, Rechnungen, Belege und Einstellungen zurück. Die Datei wird vollständig geprüft, bevor etwas übernommen wird; bei einem Fehler bleibt alles, wie es ist." }}</p>
+      <form method="post" action="/restore" enctype="multipart/form-data" class="form"
+            data-confirm="{{ t "Sicherung jetzt übernehmen? Die Standardkategorien werden dabei durch die aus der Sicherung ersetzt." }}">
+        <label class="field"><span>{{ t "Sicherungsdatei" }} <span class="hint">{{ "bookkeeper-….backup.gz" }}</span></span>
+          <input type="file" name="backup" accept=".gz,application/gzip" required></label>
+        <div class="actions"><button type="submit" class="primary">{{ template "icon" "upload" }} {{ t "Sicherung übernehmen" }}</button></div>
+      </form>
+    </div>
+    {{ end }}
+    <details class="disclosure">
+      <summary>{{ if $.Fresh }}{{ t "Wiederherstellen über die Kommandozeile" }}{{ else }}{{ t "Wiederherstellen" }}{{ end }}</summary>
+      <div class="disclosure-body note">
+        {{ if not $.Fresh }}<p>{{ t "Im Browser geht das nur in einer neuen, leeren Installation: dort erscheint an dieser Stelle ein Formular zum Hochladen der Sicherung." }}</p>{{ end }}
+        <p>{{ t "Wiederhergestellt wird bewusst nicht im Browser, sondern auf dem Server, und nur in eine" }}
+          <strong>{{ t "leere" }}</strong> {{ t "Datenbank. So kann eine Sicherung nie versehentlich über bestehende Bücher gespielt werden:" }}</p>
+        <pre class="ocr-text">{{ t "bookkeeper verify  bookkeeper-….backup.gz" }}
+{{ t "bookkeeper restore -dsn sqlite:///data/neu.db bookkeeper-….backup.gz" }}</pre>
+        <p>{{ t "Eine Sicherung aus SQLite lässt sich auch in Postgres wiederherstellen und umgekehrt." }}</p>
+      </div>
+    </details>
+  </div>
+</section>
+{{ end }}
+{{ end }}

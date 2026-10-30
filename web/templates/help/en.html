@@ -1,0 +1,136 @@
+{{/* The help in English. help/de.html holds the same sections with the same
+     ids; TestHelpLanguagesMatch keeps them in step. German terms of Austrian
+     law stay German, as they do on the English pages. */}}
+{{ define "help-en" }}
+<nav class="card card-body help-toc" aria-label="Contents">
+  <ol>
+    <li><a href="#start">Getting started</a></li>
+    <li><a href="#buchungen">Bookings</a></li>
+    <li><a href="#belege">Receipts</a></li>
+    <li><a href="#bank">Bank</a></li>
+    <li><a href="#rechnungen">Invoices</a></li>
+    <li><a href="#stammdaten">Categories and contacts</a></li>
+    <li><a href="#kleinunternehmer">Small business exemption and SVS</a></li>
+    <li><a href="#auswertung">Reports, VAT and export</a></li>
+    <li><a href="#sicherung">Backup and archive</a></li>
+    <li><a href="#einstellungen">Settings</a></li>
+    <li><a href="#app">Login, theme and app</a></li>
+  </ol>
+</nav>
+
+<section class="card card-body help section" id="start">
+  <h2>Getting started</h2>
+  <ol>
+    <li>Under <a href="/settings">Settings</a>, enter your own sender details: name, address, VAT ID (if you have one), IBAN. Without a sender, no invoice can be issued.</li>
+    <li>Set whether the small business exemption applies, and choose the language and date format.</li>
+    <li>Look through the <a href="/categories">categories</a>. A new installation comes with a set of common ones; change them, add your own, and add keywords.</li>
+    <li>Import your first bank statement under <a href="/bank">Bank</a>, or <a href="/entries/new">record</a> your first booking by hand.</li>
+  </ol>
+  <p>Moving from another installation? Restore a backup instead, see <a href="#sicherung">Backup</a>.</p>
+</section>
+
+<section class="card card-body help section" id="buchungen">
+  <h2>Bookings</h2>
+  <p>The app keeps cash-basis accounts: every income and every expense is a booking with a receipt date, a gross amount and a VAT rate. The app works out net and VAT.</p>
+  <ul>
+    <li><strong>Record:</strong> <a href="/entries/new">New booking</a>. The category is optional; if it has a default VAT rate, that rate is suggested. A receipt (photo or PDF) can be uploaded with it.</li>
+    <li><strong>Unchangeable:</strong> a saved booking is never changed or deleted. A mistake is corrected with <em>Reverse</em> on the booking: that adds a counter-booking, and then you book again correctly. That way it stays clear what was booked when. Only the <em>description</em> can be changed on the booking; the original and every change stay visible there.</li>
+    <li><strong>Partly private use</strong>, such as a phone or internet: in the form under <em>Partly private use?</em>, enter the business share (default 100 %) and note how you found it. Only that share counts for the profit and the input VAT; under 10 % business use there is no input VAT. The full amount stays booked, because it was paid from the business account. The next bill from the same bank counterparty takes over the share. The share can be changed later on the booking; the original stays visible. Agree the share with your tax adviser.</li>
+    <li><strong>Purchases above €1,000</strong> (net) are depreciated: on the booking, <em>Depreciate as an asset</em> with the useful life and the date it was put in use. The app computes the linear AfA (half in the first year from 1 July) and keeps the <a href="/assets">fixed asset register</a>.</li>
+    <li><strong>List:</strong> under <a href="/entries">Bookings</a>, filter by year, month, type, category and text. The filter <em>expenses without receipt</em> shows where a receipt is missing; the overview reminds you too.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="belege">
+  <h2>Receipts</h2>
+  <p>Receipts are stored with their booking in the database, so every backup holds them. They must be kept for seven years (§ 132 BAO), which is why they can be added but not replaced or removed.</p>
+  <ul>
+    <li><strong>Add a receipt:</strong> under <a href="/receipts/new">Add receipt</a>, upload a photo or a PDF invoice. If text recognition is installed on the server, the app suggests amount, date and VAT rate. Always check the values before saving.</li>
+    <li><strong>Many at once:</strong> under <em>Several receipts at once</em>, choose all photos and PDFs together. They go onto a waiting list and are read there in the background, several at once; the list shows which are still being read and updates by itself. They are checked in one list with a preview; category and VAT rate are suggested from the keywords, and a receipt that is booked already is recognised. <em>Book ticked</em> books each one with its receipt.</li>
+    <li><strong>Later:</strong> on a booking without a receipt, the receipt can be added afterwards.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="bank">
+  <h2>Bank</h2>
+  <ul>
+    <li><strong>Import:</strong> under <a href="/bank">Bank</a>, upload your bank's CSV export (<em>Import bank statement</em>). The first time, you map the columns; the app remembers this for that bank format. Importing the same file twice is safe, known transactions are skipped.</li>
+    <li><strong>Match:</strong> each open transaction is matched to a booking. <em>Create booking</em> opens the form with the transaction's data, <em>Choose booking</em> links it to an existing one.</li>
+    <li><strong>Incoming payments:</strong> when a transfer names the invoice number and the open amount, the app offers <em>Invoice … paid</em>. <em>Match all unambiguous</em> does this for every certain case at once.</li>
+    <li><strong>Private:</strong> transfers between the business account and yourself are private withdrawals or deposits, not income or expenses. <em>Private</em> marks a transaction as such; the app recognises transfers to your own name and marks them all at once if you like. If such transfers were already booked as expenses, <em>Move to private</em> fixes them: a Storno on the same day, then private. The totals are under <a href="/reports">Year &amp; export</a>.</li>
+    <li><strong>Suggestions:</strong> the <a href="/bank/drafts">booking suggestions</a> propose a booking for open transactions: like the last booking for the same payee, otherwise from the categories' keywords. Optionally, a local language model helps with new payees (see README). Nothing is booked by itself: you check, tick and book.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="rechnungen">
+  <h2>Invoices</h2>
+  <ul>
+    <li><strong>Create:</strong> <a href="/invoices/new">Create invoice</a> with a recipient (a contact), invoice and service date, and the positions, each with its own VAT rate.</li>
+    <li><strong>Draft, preview, issue:</strong> <em>Save as draft</em> keeps the invoice without a number; it can still be changed or deleted. <em>Preview (PDF)</em> shows it with a "draft" watermark. Only <em>Issue invoice</em> assigns the number; after that, the invoice cannot be changed. A correction is a new invoice.</li>
+    <li><strong>PDF:</strong> with your logo, every mandatory field under § 11 UStG, and a payment QR code that banking apps read. Logo, bank details and numbering are set under <a href="/settings">Settings</a>.</li>
+    <li><strong>Payment:</strong> <em>Record payment</em> on the invoice books the incoming money as income, or the payment is matched under <a href="/bank">Bank</a>. A smaller amount is a part payment; the invoice stays open with the rest. Open and overdue amounts are shown in the invoice list.</li>
+    <li><strong>Recurring invoices</strong> (such as hosting): <em>Make recurring</em> on an invoice, or on the customer under <em>Recurring invoices</em>. With a rhythm (monthly, quarterly, yearly) and the date of the next invoice; <code>{Period}</code> in a position is replaced by the month, quarter or year. A week ahead, the overview and the invoice list remind you; <em>Create invoice</em> opens the pre-filled form. Nothing is sent automatically. Issuing it moves the next invoice a period on; a period can also be skipped or the template paused. <em>Use as template</em> copies an invoice once into a new one.</li>
+    <li><strong>Import:</strong> invoices from another program can be taken over as PDF with <a href="/invoices/import">Import invoice</a>. They then count like issued invoices, and the original PDF is kept. When moving over with many invoices, choose all PDFs at once under <em>Several invoices at once</em>, check them in one list and import the ticked ones.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="stammdaten">
+  <h2>Categories and contacts</h2>
+  <ul>
+    <li><strong>Categories</strong> group bookings for the reports. <em>Keywords</em> assign bank transactions automatically, for example "magenta, a1 telekom" for telephone. A <em>default VAT rate</em> is suggested for the category's expenses. Earlier bookings count before the keywords: a bank transaction or receipt whose counterparty resembles an earlier booking gets that booking's category, contact and VAT rate suggested ("similar booking"). <em>Tax deductible</em> 50 % is for business meals with an advertising purpose: half counts for the profit, the input VAT stays in full.</li>
+    <li><strong>Contacts</strong> are customers and suppliers. Invoices need a contact as recipient. A contact can be deleted as long as no invoice and no booking refers to it.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="kleinunternehmer">
+  <h2>Small business exemption and SVS</h2>
+  <ul>
+    <li>The small business exemption (Kleinunternehmerregelung, § 6 Abs 1 Z 27 UStG) is entered under <a href="/settings">Settings</a> with its period: <em>Applies from</em>, and when switching it off, <em>Applied until</em>. Every figure follows the receipt date.</li>
+    <li>During that period, invoices carry no VAT but the exemption note. Expenses keep the VAT rate on their receipt; that VAT is recorded, but never deducted as input VAT.</li>
+    <li>The overview and <a href="/reports">Year &amp; export</a> show revenue against the threshold of €55,000 gross and the tolerance up to €60,500.</li>
+    <li>If you have applied for the SVS small business exemption, switch it on in the settings; the overview then shows the SVS limits too.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="auswertung">
+  <h2>Reports, VAT and export</h2>
+  <ul>
+    <li><strong><a href="/reports">Year &amp; export</a>:</strong> totals for the year, the profit (with AfA and only the deductible part of expenses), totals per category, small business threshold and SVS.</li>
+    <li><strong><a href="/reports/vat">VAT</a>:</strong> output VAT, input VAT and VAT payable per month or quarter. This is a calculation aid, not a VAT return.</li>
+    <li><strong>Export for the tax adviser</strong>, on both pages and under Settings with a choice of year:
+      a <em>CSV</em> with every booking and a VAT summary; the <em>archive with receipts</em>, a ZIP with the CSV, every receipt and every invoice of the year; and, if switched on in the settings, the <em>DATEV</em> batch.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="sicherung">
+  <h2>Backup and archive</h2>
+  <ul>
+    <li><strong>Backup:</strong> download it under <a href="/settings#backup">Settings, Backup</a>. It holds all books, invoices, receipts and settings. On the server, the app can back up automatically every day; the overview warns when the last backup is more than a week old. Keep backups off the server too.</li>
+    <li><strong>Restore:</strong> in a new, empty installation, a form to upload the backup appears in the same place. The file is checked completely before anything is taken over. A restore never goes over existing books.</li>
+    <li><strong>Archive:</strong> the year archive (see <a href="#auswertung">Export</a>) opens and can be passed on without the app. It does not replace the backup: only the backup restores the app.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="einstellungen">
+  <h2>Settings</h2>
+  <ul>
+    <li><strong>Invoice issuer:</strong> name, address, VAT ID, IBAN and BIC, contact for the footer, payment terms.</li>
+    <li><strong>Invoice numbers:</strong> running through the year (2026-0001) or by date with a number per day (E260112001), with a prefix of your choice.</li>
+    <li><strong>Logo</strong> for the invoice PDFs.</li>
+    <li><strong>Display:</strong> language (German or English) and date format.</li>
+    <li><strong>VAT:</strong> default VAT rate for expenses, the small business exemption with its period, the SVS exemption.</li>
+    <li><strong>Email notifications:</strong> reminders about recurring and overdue invoices, backups and waiting receipts, to an address of yours, never to customers. Enter the mail server (server, user, password) here and try it with <em>Send test mail</em>; the password is never shown again and is in no backup.</li>
+    <li><strong>DATEV export:</strong> only needed if your tax adviser works with DATEV. Switched off, the account fields disappear; accounts already entered stay saved.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="app">
+  <h2>Login, theme and app</h2>
+  <ul>
+    <li><strong>Login:</strong> whoever runs the server can set a password (see README); the app then asks for it when opened.</li>
+    <li><strong>Light and dark:</strong> the switch at the bottom of the sidebar (at the top on a phone) toggles between system, light and dark.</li>
+    <li><strong>As an app:</strong> choose "Add to Home Screen" or "Install" in the browser, and the books open like an app of their own.</li>
+  </ul>
+  <p class="note">The app is a calculation aid, not tax advice. Where a rule is unclear, it says so instead of guessing; when in doubt, ask your tax adviser.</p>
+</section>
+{{ end }}

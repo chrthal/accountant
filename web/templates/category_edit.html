@@ -1,0 +1,39 @@
+{{ define "title" }}{{ t "Kategorie bearbeiten" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+{{ with .Category }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/categories">{{ t "Kategorien" }}</a> / #{{ .ID }}</p>
+    <h1>{{ .Name }}</h1>
+    {{ if datev }}<p class="lede">{{ t "Die Kontovorgaben gelten für" }} <strong>{{ t "künftige" }}</strong> {{ t "Buchungen." }}
+      {{ t "Bestehende Buchungen behalten die Konten, mit denen sie gebucht wurden." }}</p>{{ end }}
+  </div>
+</header>
+<form method="post" action="/categories/{{ .ID }}" class="card card-body form form-card">
+  <label class="field"><span>{{ t "Name" }}</span><input type="text" name="name" required maxlength="100" value="{{ .Name }}"></label>
+  <div class="field"><span class="label">{{ t "Art" }}</span>
+    <div class="segmented" role="radiogroup" aria-label="{{ t "Art" }}">
+      <label><input type="radio" name="direction" value="outgoing" {{ if eq .Direction "outgoing" }}checked{{ end }}><span class="seg-out">{{ t "Ausgabe" }}</span></label>
+      <label><input type="radio" name="direction" value="income" {{ if eq .Direction "income" }}checked{{ end }}><span class="seg-in">{{ t "Einnahme" }}</span></label>
+      <label><input type="radio" name="direction" value="both" {{ if eq .Direction "both" }}checked{{ end }}><span>{{ t "beides" }}</span></label>
+    </div>
+  </div>
+  {{ template "category-auto" (categoryForm .) }}
+  {{ if datev }}
+  <div class="fields-2">
+    <label class="field"><span>{{ t "Konto" }}</span><input type="text" name="default_konto" inputmode="numeric" value="{{ .DefaultKonto }}"></label>
+    <label class="field"><span>{{ t "Gegenkonto" }}</span><input type="text" name="default_gegenkonto" inputmode="numeric" value="{{ .DefaultGegenkonto }}"></label>
+  </div>
+  {{ else }}
+  {{/* DATEV is off: the accounts stay as they are when the category is saved. */}}
+  <input type="hidden" name="default_konto" value="{{ .DefaultKonto }}">
+  <input type="hidden" name="default_gegenkonto" value="{{ .DefaultGegenkonto }}">
+  {{ end }}
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Speichern" }}</button>
+    <a class="btn ghost" href="/categories">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+{{ end }}
+{{ end }}

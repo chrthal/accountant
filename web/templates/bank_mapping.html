@@ -1,0 +1,55 @@
+{{ define "title" }}{{ t "Spalten zuordnen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/bank">{{ t "Bank" }}</a> / {{ t "Import" }}</p>
+    <h1>{{ t "Spalten zuordnen" }}</h1>
+    <p class="lede">{{ t "Datei" }} <strong>{{ index .Form "source_name" }}</strong>. {{ t "Bitte angeben, welche Spalte was enthält. Datum und Betrag werden gebraucht, der Rest ist optional." }}</p>
+  </div>
+</header>
+
+<ol class="steps"><li class="done"><b>1</b> {{ t "Datei" }}</li><li class="current"><b>2</b> {{ t "Spalten" }}</li><li><b>3</b> {{ t "Abgleich" }}</li></ol>
+
+<section class="card">
+  <div class="card-head"><h2>{{ t "Vorschau" }}</h2><span class="meta">{{ t "erste Zeilen der Datei" }}</span></div>
+  <div class="table-wrap">
+    <table class="table preview">
+      <thead><tr>{{ range $i, $c := .Columns }}<th>{{ inc $i }}</th>{{ end }}</tr></thead>
+      <tbody>
+        {{ range .Preview }}<tr>{{ range . }}<td>{{ . }}</td>{{ end }}</tr>{{ end }}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<form method="post" action="/bank/import" class="card card-body form section">
+  <input type="hidden" name="payload" value="{{ index .Form "payload" }}">
+  <input type="hidden" name="source_name" value="{{ index .Form "source_name" }}">
+
+  <label class="check"><input type="checkbox" name="has_header" value="1" {{ if eq (index .Form "has_header") "1" }}checked{{ end }}>
+    <span>{{ t "Die erste Zeile enthält Spaltenüberschriften" }}{{ with index .Form "header_hint" }} <span class="hint">({{ t . }})</span>{{ end }}</span></label>
+
+  <div class="fields-2">
+    {{ template "col-select" (colCtx "col_date" (t "Datum") .Columns (index .Form "col_date") false) }}
+    {{ template "col-select" (colCtx "col_amount" (t "Betrag") .Columns (index .Form "col_amount") false) }}
+    {{ template "col-select" (colCtx "col_counterparty" (t "Empfänger / Auftraggeber (optional)") .Columns (index .Form "col_counterparty") true) }}
+    {{ template "col-select" (colCtx "col_purpose" (t "Verwendungszweck (optional)") .Columns (index .Form "col_purpose") true) }}
+  </div>
+
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "upload" }} {{ t "Umsätze importieren" }}</button>
+    <a class="btn ghost" href="/bank">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+{{ end }}
+
+{{ define "col-select" }}
+<label class="field"><span>{{ .Label }}</span>
+  <select name="{{ .Name }}" {{ if not .Optional }}required{{ end }}>
+    {{ if .Optional }}<option value="-1">— {{ t "keine" }} —</option>{{ end }}
+    {{ $sel := .Selected }}
+    {{ range $i, $c := .Columns }}<option value="{{ $i }}" {{ if eq (itoa $i) $sel }}selected{{ end }}>{{ inc $i }}: {{ $c }}</option>{{ end }}
+  </select>
+</label>
+{{ end }}

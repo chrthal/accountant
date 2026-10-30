@@ -1,0 +1,12 @@
+{{ define "title" }}{{ t "Hilfe" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Hilfe" }}</p>
+    <h1>{{ t "So funktioniert die App" }}</h1>
+    <p class="lede">{{ t "Alle Bereiche der Buchhaltung im Überblick, in der Reihenfolge, in der man sie meist braucht." }}</p>
+  </div>
+</header>
+{{ if eq lang "en" }}{{ template "help-en" . }}{{ else }}{{ template "help-de" . }}{{ end }}
+{{ end }}

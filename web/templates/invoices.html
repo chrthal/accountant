@@ -1,0 +1,93 @@
+{{ define "title" }}{{ t "Rechnungen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Ausgangsrechnungen" }}</p>
+    <h1>{{ t "Rechnungen" }}</h1>
+    <p class="lede">{{ t "Ausgestellte Rechnungen sind unveränderlich. Eine Korrektur ist eine neue Rechnung." }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="/invoices/import">{{ template "icon" "upload" }} {{ t "Rechnung importieren" }}</a>
+    <a class="btn" href="/recurring">{{ template "icon" "clock" }} {{ t "Wiederkehrend" }}</a>
+    <a class="btn primary" href="/invoices/new">{{ template "icon" "plus" }} {{ t "Rechnung erstellen" }}</a>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+{{ with .QueuedImports }}<div class="alert notice">{{ template "icon" "clock" }}
+  <p>{{ tf "%d importierte Rechnung(en) warten auf die Prüfung." . }} <a href="/invoices/import/review">{{ t "Jetzt prüfen" }}</a></p></div>{{ end }}
+
+{{ if .Invoices }}
+<section class="cols-3" aria-label="{{ t "Offene Posten" }}">
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot accent"></span> {{ t "Offen" }}</div>
+    <div class="kpi-value num">{{ eur .OpenCents }}<span class="cur">€</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot neg"></span> {{ t "davon überfällig" }}</div>
+    <div class="kpi-value num">{{ eur .OverdueCents }}<span class="cur">€</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot"></span> {{ t "Rechnungen" }}</div>
+    <div class="kpi-value num">{{ len .Invoices }}</div>
+  </div>
+</section>
+{{ end }}
+
+{{ with .DueRecurring }}
+<section class="card section" aria-labelledby="due-title">
+  <div class="card-head"><h2 id="due-title">{{ t "Wiederkehrende Rechnungen fällig" }}</h2><a class="meta" href="/recurring">{{ t "alle anzeigen" }}</a></div>
+  <ul class="ledger">{{ range . }}{{ template "recurring-row" . }}{{ end }}</ul>
+</section>
+{{ end }}
+
+
+{{ with .InvoiceDrafts }}
+<section class="card section" aria-labelledby="drafts-title">
+  <div class="card-head"><h2 id="drafts-title">{{ t "Entwürfe" }}</h2><span class="meta">{{ t "noch ohne Nummer" }}</span></div>
+  <ul class="ledger">
+    {{ range . }}
+    <li class="draft-row">
+      <a class="ledger-row" href="/invoice-drafts/{{ .ID }}">
+        <span class="glyph">{{ template "icon" "edit" }}</span>
+        <span>
+          <span class="title">{{ if .Recipient }}{{ .Recipient }}{{ else }}<span class="muted">{{ t "ohne Empfänger" }}</span>{{ end }}</span>
+          <span class="sub">{{ if .IssueDate }}{{ tf "vom %s" (date .IssueDate) }} · {{ end }}{{ tf "%d Position(en)" .Positions }} · {{ tf "geändert %s" (ago .UpdatedAt) }}</span>
+        </span>
+        <span class="figure"><span class="amount">{{ eur .GrossCents }} €</span><span class="sub"><span class="badge">{{ t "Entwurf" }}</span></span></span>
+      </a>
+      <form method="post" action="/invoice-drafts/{{ .ID }}/delete" data-confirm="{{ t "Entwurf löschen?" }}">
+        <button type="submit" class="ghost sm danger" aria-label="{{ t "Entwurf löschen" }}" title="{{ t "Entwurf löschen" }}">{{ template "icon" "trash" }}</button>
+      </form>
+    </li>
+    {{ end }}
+  </ul>
+</section>
+{{ end }}
+
+<section class="card section">
+  {{ if not .Invoices }}
+    <div class="empty">{{ template "icon" "file" }}<p>{{ t "Noch keine Rechnungen ausgestellt." }}</p>
+      <a class="btn primary" href="/invoices/new">{{ template "icon" "plus" }} {{ t "Erste Rechnung" }}</a></div>
+  {{ else }}
+  <div class="card-head"><h2>{{ t "Ausgestellt" }}</h2><span class="meta">{{ t "unveränderlich" }}</span></div>
+  <ul class="ledger">
+    {{ range .Invoices }}
+    <li><a class="ledger-row income" href="/invoices/{{ .ID }}">
+      <span class="glyph">{{ template "icon" "file" }}</span>
+      <span>
+        <span class="title">{{ .Number }} · {{ .RecipientName }}</span>
+        <span class="sub">{{ tf "vom %s" (date .IssueDate) }}{{ if .Imported }} · {{ t "importiert" }}{{ end }}{{ if .Kleinunternehmer }} · {{ t "ohne USt (Kleinunternehmer)" }}{{ else }} · {{ tf "USt %s €" (eur .VATCents) }}{{ end }}</span>
+      </span>
+      <span class="figure">
+        <span class="amount">{{ eur .GrossCents }} €</span>
+        <span class="sub">{{ template "invoice-status" . }}</span>
+      </span>
+    </a></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</section>
+{{ end }}
+

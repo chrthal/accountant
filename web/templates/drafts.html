@@ -1,0 +1,85 @@
+{{ define "title" }}{{ t "Buchungsvorschläge" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/bank">{{ t "Bank" }}</a> / {{ t "Vorschläge" }}</p>
+    <h1>{{ t "Buchungsvorschläge" }}</h1>
+    <p class="lede">{{ t "Offene Bankumsätze ohne passende Rechnung, mit einem Vorschlag für die Buchung. Gebucht wird nur, was Sie bestätigen, einzeln oder angehakt. Jede Buchung wird ihrem Umsatz zugeordnet." }}</p>
+  </div>
+  <div class="page-actions">
+    {{ if .LLMEnabled }}
+    <form method="post" action="/bank/drafts/suggest" class="inline-form">
+      <button type="submit" class="sm" {{ if .LLMRunning }}disabled{{ end }}>{{ template "icon" "search" }}
+        {{ if .LLMRunning }}{{ t "KI-Vorschläge werden erstellt …" }}{{ else }}{{ t "KI-Vorschläge holen" }}{{ end }}</button>
+    </form>
+    {{ end }}
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+{{ if .LLMRunning }}<div class="alert notice">{{ template "icon" "clock" }}<p>{{ t "Das lokale Modell erstellt Vorschläge. Seite in ein paar Sekunden" }} <a href="/bank/drafts">{{ t "neu laden" }}</a>.</p></div>{{ end }}
+{{ if .Settings.Kleinunternehmer }}<div class="alert notice">{{ template "icon" "info" }}<p>{{ t "Kleinunternehmerregelung aktiv: alle Vorschläge mit 0 % USt." }}</p></div>{{ end }}
+
+{{ if not .Drafts }}
+<section class="card"><div class="empty">{{ template "icon" "check" }}<p>{{ t "Keine offenen Bankumsätze ohne Rechnung." }}</p>
+  <a class="btn" href="/bank">{{ t "Zur Bank" }}</a></div></section>
+{{ else }}
+<form method="post" action="/bank/drafts" class="grid">
+  {{ $cats := .Categories }}{{ $cons := .Contacts }}
+  {{ range .Drafts }}
+  {{ $id := i64 .Tx.ID }}
+  <section class="card draft">
+    <div class="card-head">
+      <label class="check"><input type="checkbox" name="pick" value="{{ $id }}" {{ if .Preselect }}checked{{ end }}>
+        <span><strong>{{ if .Tx.Counterparty }}{{ .Tx.Counterparty }}{{ else }}{{ truncate .Tx.Purpose 50 }}{{ end }}</strong>
+          <span class="meta"> · {{ date .Tx.BookedOn }}{{ with .Tx.CounterpartyIBAN }} · {{ . }}{{ end }}</span></span></label>
+      <span class="amount {{ if eq .Tx.Direction "income" }}pos{{ else }}neg{{ end }}">{{ eur .Tx.AmountCents }}</span>
+    </div>
+    <div class="card-body">
+      {{ with .Err }}<div class="alert error">{{ template "icon" "alert" }}<p>{{ . }}</p></div>{{ end }}
+      {{ if .Tx.Counterparty }}{{ with .Tx.Purpose }}<p class="meta">{{ . }}</p>{{ end }}{{ end }}
+      <div class="draft-grid">
+        <label class="field"><span>{{ t "Beschreibung" }}
+          {{ if or (eq .Source "wie zuletzt") (eq .Source "ähnliche Buchung") (eq .Source "Kategorie erkannt") }}<span class="badge ok" title="{{ .Why }}">{{ t .Source }}</span>
+          {{ else if .Source }}<span class="badge {{ if .Unsure }}warn{{ else }}accent{{ end }}" title="{{ .Why }}">{{ t .Source }}{{ if .Unsure }} · {{ t "unsicher" }}{{ end }}</span>{{ end }}</span>
+          <input type="text" name="desc_{{ $id }}" value="{{ .Description }}" required maxlength="200"></label>
+        <label class="field"><span>{{ t "Kategorie" }}</span>
+          <select name="cat_{{ $id }}"><option value="">—</option>
+            {{ $sel := .CategoryID }}{{ $dir := .Tx.Direction }}
+            {{ range $cats }}{{ if or (eq .Direction $dir) (eq .Direction "both") }}<option value="{{ .ID }}" {{ if eq .ID $sel }}selected{{ end }}>{{ .Name }}</option>{{ end }}{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Kontakt" }}</span>
+          <select name="contact_{{ $id }}"><option value="">—</option>
+            {{ $csel := .ContactID }}
+            {{ range $cons }}<option value="{{ .ID }}" {{ if eq .ID $csel }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "USt" }}
+          {{ if eq .VATSource "KI" }}<span class="badge warn" title="{{ t "Vom Modell geschätzt. Ein Bankumsatz nennt den USt-Satz nicht. Bitte mit dem Beleg prüfen." }}">{{ t "prüfen" }}</span>
+          {{ else if eq .VATSource "Kategorie" }}<span class="badge ok" title="{{ t "Standard-USt-Satz der Kategorie" }}">{{ t "Kategorie" }}</span>
+          {{ else if eq .VATSource "Standard" }}<span class="badge" title="{{ t "Standard-USt-Satz aus den Einstellungen" }}">{{ t "Standard" }}</span>{{ end }}</span>
+          <select name="vat_{{ $id }}">
+            {{ $v := .VATRate }}
+            {{ range vatRates }}<option value="{{ . }}" {{ if eq . $v }}selected{{ end }}>{{ . }} %</option>{{ end }}
+          </select></label>
+      </div>
+      {{ if eq .Tx.Direction "outgoing" }}
+      <div class="draft-grid">
+        <label class="field wide-2"><span>{{ t "Privatanteil: so ermittelt" }} <span class="hint">{{ t "optional" }}</span></span>
+          <input type="text" name="bnote_{{ $id }}" maxlength="200" value="{{ .BusinessNote }}" placeholder="{{ t "z. B. Einzelverbindungsnachweis" }}"></label>
+        <label class="field"><span title="{{ t "Teilweise privat genutzt, z. B. Telefon: nur dieser Anteil zählt für Gewinn und Vorsteuer." }}">{{ t "Betrieblich %" }}</span>
+          <input type="number" name="bpct_{{ $id }}" min="1" max="100" step="1" inputmode="numeric" value="{{ if .BusinessPct }}{{ .BusinessPct }}{{ else }}100{{ end }}"></label>
+      </div>
+      {{ end }}
+      <div class="actions">
+        <button type="submit" name="only" value="{{ $id }}" class="sm">{{ template "icon" "check" }} {{ t "Buchen" }}</button>
+        <a class="btn ghost sm" href="/entries/new?bank_tx={{ $id }}">{{ t "Im Formular öffnen" }}</a>
+      </div>
+    </div>
+  </section>
+  {{ end }}
+  <div class="actions"><button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Angehakte buchen" }}</button>
+    <span class="meta">{{ t "Vorausgewählt sind Vorschläge „wie zuletzt“, erkannte Kategorien und sichere KI-Vorschläge. Der USt-Satz kommt aus der letzten Buchung, der Kategorie oder dem Standard in den Einstellungen." }}</span></div>
+</form>
+{{ end }}
+{{ end }}

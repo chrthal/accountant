@@ -1,0 +1,129 @@
+{{/* Shared fragments, parsed with every page. */}}
+
+{{ define "entry-row" }}
+<li>
+  <a class="ledger-row {{ .Direction }}{{ if not .Effective }} inactive{{ end }}" href="/entries/{{ .ID }}">
+    <span class="glyph">{{ if .IsReversal }}{{ template "icon" "undo" }}{{ else if eq .Direction "income" }}{{ template "icon" "in" }}{{ else }}{{ template "icon" "out" }}{{ end }}</span>
+    <span>
+      <span class="title">{{ .Description }}{{ if .Attachments }} <span class="clip" title="{{ t "Beleg vorhanden" }}">{{ template "icon" "clip" }}</span>{{ end }}</span>
+      <span class="sub">{{ date .BookedOn }}{{ with .CategoryName }} · {{ . }}{{ end }}{{ with .ContactName }} · {{ . }}{{ end }}{{ if .IsMixed }} · {{ tf "betrieblich %d %%" .BusinessPct }}{{ end }}</span>
+    </span>
+    <span class="figure">
+      <span class="amount {{ if eq .Direction "income" }}pos{{ else }}neg{{ end }}">{{ if eq .Direction "outgoing" }}−{{ else }}+{{ end }}{{ eur .AmountGrossCents }}</span>
+      <span class="sub">{{ if .VATRate }}{{ tf "%d %% USt" .VATRate }}{{ else }}{{ t "ohne USt" }}{{ end }}</span>
+    </span>
+    {{ if or .IsReversal .IsReversed }}
+    <span class="aside">
+      {{ if .IsReversal }}<span class="badge">{{ tf "Storno zu #%s" (idstr .ReversesEntryID) }}</span>{{ end }}
+      {{ if .IsReversed }}<span class="badge warn">{{ tf "storniert durch #%s" (idstr .ReversedByID) }}</span>{{ end }}
+    </span>
+    {{ end }}
+  </a>
+</li>
+{{ end }}
+
+{{ define "direction" }}{{ if eq . "income" }}{{ t "Einnahme" }}{{ else if eq . "outgoing" }}{{ t "Ausgabe" }}{{ else }}{{ t "beides" }}{{ end }}{{ end }}
+
+{{ define "kind" }}{{ if eq . "customer" }}{{ t "Kunde" }}{{ else if eq . "vendor" }}{{ t "Lieferant" }}{{ else }}{{ t "Kunde & Lieferant" }}{{ end }}{{ end }}
+
+{{ define "notice" }}{{ with . }}<div class="alert notice" role="status">{{ template "icon" "check" }}<p>{{ . }}</p></div>{{ end }}{{ end }}
+
+{{ define "invoice-status" }}{{ if .IsPaid }}<span class="badge ok">{{ t "bezahlt" }}</span>{{ else if .IsOverdue }}<span class="badge danger">{{ t "überfällig" }}{{ if .PaidCents }} · {{ t "teilweise bezahlt" }}{{ end }}</span>{{ else if .PaidCents }}<span class="badge warn">{{ t "teilweise bezahlt" }}</span>{{ else }}<span class="badge warn">{{ t "offen" }}</span>{{ end }}{{ end }}
+
+{{/* Keywords and default VAT, shared by the create and edit forms (ADR 0021).
+     Takes a map with "keywords" and "default_vat_rate". */}}
+{{ define "category-auto" }}
+<label class="field"><span>{{ t "Stichwörter" }} <span class="hint">{{ t "optional, mit Komma getrennt" }}</span></span>
+  <input type="text" name="keywords" value="{{ index . "keywords" }}" placeholder="{{ t "Wörter aus dem Bankumsatz, mit Komma getrennt" }}" maxlength="500">
+</label>
+<label class="field"><span>{{ t "Standard-USt-Satz" }} <span class="hint">{{ t "optional" }}</span></span>
+  <select name="default_vat_rate">
+    {{ $v := index . "default_vat_rate" }}
+    <option value="">{{ t "— keiner (Standard aus den Einstellungen)" }}</option>
+    {{ range vatRates }}<option value="{{ . }}" {{ if eq (itoa .) $v }}selected{{ end }}>{{ . }} %</option>{{ end }}
+  </select>
+</label>
+<label class="field"><span>{{ t "Steuerlich absetzbar" }} <span class="hint">{{ t "Anteil der Ausgabe, der den Gewinn mindert" }}</span></span>
+  <select name="deductible_pct">
+    {{ $p := index . "deductible_pct" }}
+    <option value="100" {{ if ne $p "50" }}selected{{ end }}>{{ t "100 % (normal)" }}</option>
+    <option value="50" {{ if eq $p "50" }}selected{{ end }}>{{ t "50 % (Bewirtung mit Werbecharakter, § 20 Abs 1 Z 3 EStG)" }}</option>
+  </select>
+</label>
+{{ end }}
+
+{{/* SVS Kleinunternehmer exemption (ADR 0023). Takes the report.SVS. */}}
+{{ define "svs-card" }}
+<section class="card" aria-labelledby="svs-title">
+  <div class="card-head"><h2 id="svs-title">{{ tf "SVS-Kleinunternehmergrenze %d" .Year }}</h2>
+    {{ if not .Known }}<span class="badge">{{ t "keine Werte" }}</span>
+    {{ else if .Within }}<span class="badge ok">{{ t "innerhalb" }}</span>
+    {{ else }}<span class="badge danger">{{ t "überschritten" }}</span>{{ end }}</div>
+  <div class="card-body">
+    {{ if .Known }}
+    <p class="small"><strong>{{ t "Einkünfte" }}</strong> {{ tf "(Näherung) %s € von %s €" (eur .Income) (eur .Limits.IncomeCents) }}</p>
+    <svg class="meter" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="{{ t "Einkünfte im Verhältnis zur SVS-Grenze" }}">
+      <rect class="track" x="0" y="0" width="100" height="10"/>
+      <rect class="{{ if .IncomeOK }}fill-under{{ else }}fill-exceeded{{ end }}" x="0" y="0" width="{{ .IncomeFill }}" height="10"/>
+    </svg>
+    <p class="small spaced"><strong>{{ t "Umsatz" }}</strong> {{ tf "%s € von %s €" (eur .Revenue) (eur .Limits.RevenueCents) }}</p>
+    <svg class="meter" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="{{ t "Umsatz im Verhältnis zur SVS-Grenze" }}">
+      <rect class="track" x="0" y="0" width="100" height="10"/>
+      <rect class="{{ if .RevenueOK }}fill-under{{ else }}fill-exceeded{{ end }}" x="0" y="0" width="{{ .RevenueFill }}" height="10"/>
+    </svg>
+    <p class="small spaced">{{ if .Within }}{{ tf "Noch %s € Einkünfte und %s € Umsatz bis zur Grenze." (eur .IncomeLeftCents) (eur .RevenueLeftCents) }}
+      {{ else }}{{ t "Eine Grenze ist überschritten. Dann kann die Ausnahme von der Pensions- und Krankenversicherung für dieses Jahr wegfallen. Bitte mit der SVS klären." }}{{ end }}</p>
+    {{ else }}
+    <p class="note">{{ tf "Für %d sind keine SVS-Grenzwerte hinterlegt." .Year }}</p>
+    {{ end }}
+    <p class="note">{{ t "Die Ausnahme betrifft Pensions- und Krankenversicherung, die Unfallversicherung bleibt. „Einkünfte“ sind hier Einnahmen netto minus Ausgaben, ohne AfA und Gewinnfreibetrag. Maßgeblich ist der Einkommensteuerbescheid. Ob die SVS den Umsatz brutto oder netto rechnet, ist hier nicht geprüft; verwendet wird derselbe Umsatz wie bei der USt-Kleinunternehmergrenze. Grenzwerte laut svs.at, Stand Oktober 2026." }}</p>
+  </div>
+</section>
+{{ end }}
+
+{{/* One invoice position, for the invoice and the recurring invoice form.
+     Index -1 renders the placeholder form used by the
+     <template>, which app.js fills in with the next free index. */}}
+{{ define "invoice-line" }}
+{{ $i := .Index }}
+<fieldset class="line-card" data-line>
+  <div class="line-head"><span>{{ tf "Position %s" .Number }}</span></div>
+  <label class="field"><span>{{ t "Beschreibung" }}</span>
+    <input type="text" name="description{{ $i }}" value="{{ .Line.Description }}"></label>
+  <div class="line-grid">
+    <label class="field"><span>{{ t "Menge" }}</span>
+      <input type="text" name="quantity{{ $i }}" inputmode="decimal"
+             value="{{ if .Line.Quantity }}{{ .Line.Quantity }}{{ else }}1{{ end }}"></label>
+    <label class="field"><span>{{ t "Einheit" }}</span>
+      <input type="text" name="unit{{ $i }}" value="{{ .Line.Unit }}" placeholder="{{ t "Std., Stk." }}"></label>
+    <label class="field"><span>{{ t "Einzelpreis netto (€)" }}</span>
+      <input class="amount-input" type="text" name="unit_price{{ $i }}" inputmode="decimal"
+             value="{{ .Line.UnitPrice }}" placeholder="{{ eur 10000 }}"></label>
+    <label class="field"><span>{{ t "USt-Satz" }}</span>
+      <select name="vat_rate{{ $i }}">
+        {{ $l := .Line }}{{ $ku := .KU }}
+        {{ range vatRates }}
+          <option value="{{ . }}" {{ if eq (printf "%d" .) $l.VATRate }}selected{{ end }}
+            {{ if and $ku (ne . 0) }}disabled{{ end }}>{{ . }} %</option>
+        {{ end }}
+      </select></label>
+  </div>
+</fieldset>
+{{ end }}
+
+{{/* A recurring invoice's interval (ADR 0038). */}}
+{{ define "interval" }}{{ if eq . "monthly" }}{{ t "monatlich" }}{{ else if eq . "quarterly" }}{{ t "vierteljährlich" }}{{ else }}{{ t "jährlich" }}{{ end }}{{ end }}
+
+{{/* One recurring invoice in a list. Takes a recurringRow. */}}
+{{ define "recurring-row" }}
+<li><div class="ledger-row">
+  <span class="glyph">{{ template "icon" "clock" }}</span>
+  <span>
+    <span class="title"><a href="/recurring/{{ .ID }}">{{ .Name }}</a> · {{ .ContactName }}</span>
+    <span class="sub">{{ template "interval" .Interval }} · {{ if .Active }}{{ tf "nächste am %s" (date .NextDue) }}{{ else }}{{ t "pausiert" }}{{ end }}{{ with .LastNumber }} · {{ tf "zuletzt %s" . }}{{ end }}</span>
+  </span>
+  <span class="figure"><span class="amount">{{ eur .GrossCents }} €</span>
+    <span class="sub">{{ if .Overdue }}<span class="badge danger">{{ t "fällig" }}</span>{{ else if .Due }}<span class="badge warn">{{ t "bald fällig" }}</span>{{ end }}</span></span>
+  <span class="aside">{{ if .Active }}<a class="btn sm {{ if .Due }}primary{{ else }}ghost{{ end }}" href="/invoices/new?recurring={{ .ID }}">{{ template "icon" "plus" }} {{ t "Rechnung erstellen" }}</a>{{ end }}</span>
+</div></li>
+{{ end }}

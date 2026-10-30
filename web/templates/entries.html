@@ -1,0 +1,96 @@
+{{ define "title" }}{{ t "Buchungen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Journal" }}</p>
+    <h1>{{ t "Buchungen" }}</h1>
+    <p class="lede">{{ t "Buchungen werden nie geändert oder gelöscht. Eine Korrektur ist immer eine neue, gegenläufige Buchung (Storno)." }}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="/entries/new?direction=income">{{ template "icon" "in" }} {{ t "Einnahme" }}</a>
+    <a class="btn primary" href="/entries/new?direction=outgoing">{{ template "icon" "out" }} {{ t "Ausgabe" }}</a>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+{{ with .QueuedImports }}<div class="alert notice">{{ template "icon" "clock" }}
+  <p>{{ tf "%d Beleg(e) warten auf die Prüfung." . }} <a href="/receipts/review">{{ t "Jetzt prüfen" }}</a></p></div>{{ end }}
+
+<section class="cols-3" aria-label="{{ t "Summen der Auswahl" }}">
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot pos"></span> {{ t "Einnahmen" }}</div>
+    <div class="kpi-value num">{{ eur .Page.IncomeGrossCents }}<span class="cur">€</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot neg"></span> {{ t "Ausgaben" }}</div>
+    <div class="kpi-value num">{{ eur .Page.OutgoingGrossCents }}<span class="cur">€</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot"></span> {{ t "Buchungen" }}</div>
+    <div class="kpi-value num">{{ .Page.Total }}</div>
+    <div class="kpi-sub">{{ t "Summen ohne stornierte Paare" }}</div>
+  </div>
+</section>
+
+<section class="card section">
+  <form class="filters" method="get" action="/entries" data-autosubmit role="search">
+    <label class="search"><span class="visually-hidden">{{ t "Suche" }}</span>
+      <input type="search" name="q" value="{{ .Filter.Get "q" }}" placeholder="{{ t "Beschreibung oder Kontakt suchen" }}">
+    </label>
+    <label><span class="visually-hidden">{{ t "Jahr" }}</span>
+      <select name="year">
+        {{ $y := .Filter.Get "year" }}
+        {{ range .Years }}<option value="{{ . }}" {{ if eq (itoa .) $y }}selected{{ end }}>{{ . }}</option>{{ end }}
+        <option value="alle" {{ if eq $y "alle" }}selected{{ end }}>{{ t "alle Jahre" }}</option>
+      </select>
+    </label>
+    <label><span class="visually-hidden">{{ t "Monat" }}</span>
+      <select name="month">
+        <option value="">{{ t "ganzes Jahr" }}</option>
+        {{ $m := .Filter.Get "month" }}
+        {{ range months }}<option value="{{ . }}" {{ if eq (itoa .) $m }}selected{{ end }}>{{ month . }}</option>{{ end }}
+      </select>
+    </label>
+    <label><span class="visually-hidden">{{ t "Art" }}</span>
+      <select name="direction">
+        {{ $d := .Filter.Get "direction" }}
+        <option value="">{{ t "Einnahmen & Ausgaben" }}</option>
+        <option value="income" {{ if eq $d "income" }}selected{{ end }}>{{ t "nur Einnahmen" }}</option>
+        <option value="outgoing" {{ if eq $d "outgoing" }}selected{{ end }}>{{ t "nur Ausgaben" }}</option>
+      </select>
+    </label>
+    <label><span class="visually-hidden">{{ t "Kategorie" }}</span>
+      <select name="category">
+        {{ $c := .Filter.Get "category" }}
+        <option value="">{{ t "alle Kategorien" }}</option>
+        {{ range .Categories }}<option value="{{ .ID }}" {{ if eq (i64 .ID) $c }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+      </select>
+    </label>
+    <label><span class="visually-hidden">{{ t "Belege" }}</span>
+      <select name="beleg">
+        <option value="">{{ t "mit & ohne Beleg" }}</option>
+        <option value="fehlt" {{ if eq (.Filter.Get "beleg") "fehlt" }}selected{{ end }}>{{ t "Ausgaben ohne Beleg" }}</option>
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit" class="sm">{{ template "icon" "search" }} {{ t "Filtern" }}</button>
+      <a class="btn ghost sm" href="/entries">{{ t "Zurücksetzen" }}</a>
+    </div>
+  </form>
+
+  {{ if .Page.Entries }}
+  <ul class="ledger">{{ range .Page.Entries }}{{ template "entry-row" . }}{{ end }}</ul>
+  {{ else }}
+  <div class="empty">{{ template "icon" "search" }}<p>{{ t "Keine Buchungen für diese Auswahl." }}</p></div>
+  {{ end }}
+
+  {{ if or .PrevURL .NextURL }}
+  <div class="pager">
+    {{ if .PrevURL }}<a class="btn sm" href="{{ .PrevURL }}">{{ template "icon" "left" }} {{ t "Neuere" }}</a>{{ else }}<span></span>{{ end }}
+    <span>{{ tf "%d Buchungen" .Page.Total }}</span>
+    {{ if .NextURL }}<a class="btn sm" href="{{ .NextURL }}">{{ t "Ältere" }} {{ template "icon" "right" }}</a>{{ else }}<span></span>{{ end }}
+  </div>
+  {{ end }}
+</section>
+{{ end }}

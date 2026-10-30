@@ -1,0 +1,58 @@
+{{ define "title" }}{{ t "Kontakt bearbeiten" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+{{ with .Contact }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/contacts">{{ t "Kontakte" }}</a> / #{{ .ID }}</p>
+    <h1>{{ .Name }}</h1>
+    <p class="lede">{{ t "Änderungen gelten für künftige Rechnungen. Ausgestellte Rechnungen behalten die Angaben vom Ausstellungstag." }}</p>
+  </div>
+</header>
+<form method="post" action="/contacts/{{ .ID }}" class="card card-body form form-card">
+  <label class="field"><span>{{ t "Name" }}</span><input type="text" name="name" required value="{{ .Name }}"></label>
+  <label class="field"><span>{{ t "Art" }}</span>
+    <select name="kind">
+      <option value="customer" {{ if eq .Kind "customer" }}selected{{ end }}>{{ t "Kunde" }}</option>
+      <option value="vendor"   {{ if eq .Kind "vendor"   }}selected{{ end }}>{{ t "Lieferant" }}</option>
+      <option value="both"     {{ if eq .Kind "both"     }}selected{{ end }}>{{ t "beides" }}</option>
+    </select>
+  </label>
+  <label class="field"><span>{{ t "UID-Nummer" }} <span class="hint">{{ t "optional" }}</span></span>
+    <input type="text" name="uid" value="{{ .UID }}" placeholder="ATU12345678"></label>
+  <label class="field"><span>{{ t "Adresse" }} <span class="hint">{{ t "optional" }}</span></span>
+    <textarea name="address" rows="2">{{ .Address }}</textarea></label>
+  <label class="field"><span>{{ t "E-Mail" }} <span class="hint">{{ t "optional" }}</span></span>
+    <input type="email" name="email" value="{{ .Email }}"></label>
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Speichern" }}</button>
+    <a class="btn ghost" href="/contacts">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+
+<section class="card form-card section" aria-labelledby="rec-title">
+  <div class="card-head"><h2 id="rec-title">{{ t "Wiederkehrende Rechnungen" }}</h2>
+    <a class="btn sm" href="/recurring/new?contact={{ .ID }}">{{ template "icon" "plus" }} {{ t "Neu" }}</a></div>
+  {{ with $.Recurring }}<ul class="ledger">{{ range . }}{{ template "recurring-row" . }}{{ end }}</ul>
+  {{ else }}<div class="card-body meta">{{ t "Keine wiederkehrenden Rechnungen für diesen Kontakt." }}</div>{{ end }}
+</section>
+
+{{ with $.Usage }}
+<section class="card form-card section">
+  <div class="card-head"><h2>{{ t "Kontakt löschen" }}</h2></div>
+  <div class="card-body">
+    {{ if .InUse }}
+    <p class="note">{{ if and .Invoices .Entries }}{{ tf "Nicht möglich: %d Rechnung(en) und %d Buchung(en) verwenden diesen Kontakt." .Invoices .Entries }}{{ else if .Invoices }}{{ tf "Nicht möglich: %d Rechnung(en) verwenden diesen Kontakt." .Invoices }}{{ else if .Entries }}{{ tf "Nicht möglich: %d Buchung(en) verwenden diesen Kontakt." .Entries }}{{ end }}
+      {{ if or .Invoices .Entries }}{{ t "Rechnungen und Buchungen sind unveränderlich, der Verweis bleibt also bestehen." }}{{ end }}
+      {{ with .Recurring }}{{ tf "Für diesen Kontakt gibt es %d wiederkehrende Rechnung(en); zuerst diese löschen." . }}{{ end }}</p>
+    {{ else }}
+    <form method="post" action="/contacts/{{ $.Contact.ID }}/delete" data-confirm="{{ tf "Kontakt „%s“ endgültig löschen?" $.Contact.Name }}">
+      <p class="note">{{ t "Keine Rechnung und keine Buchung verwendet diesen Kontakt." }}</p>
+      <button type="submit" class="danger">{{ template "icon" "alert" }} {{ t "Kontakt löschen" }}</button>
+    </form>
+    {{ end }}
+  </div>
+</section>
+{{ end }}
+{{ end }}
+{{ end }}

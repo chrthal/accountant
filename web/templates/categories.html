@@ -1,0 +1,74 @@
+{{ define "title" }}{{ t "Kategorien" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Stammdaten" }}</p>
+    <h1>{{ t "Kategorien" }}</h1>
+    {{ if datev }}<p class="lede">{{ t "Kategorien gruppieren Buchungen und hinterlegen die Konten für den DATEV-Export. Wird bei einer Buchung kein Konto angegeben, gilt die Vorgabe der Kategorie. Die Vorgaben sind bewusst leer: welcher Kontenrahmen gilt, klärt die Steuerberatung. Erfundene Kontonummern sehen im Export richtig aus, sind es aber nicht." }}</p>{{ else }}<p class="lede">{{ t "Kategorien gruppieren Buchungen für die Auswertung und die Zuordnung von Bankumsätzen." }}</p>{{ end }}
+    <p class="lede">{{ t "Mit" }} <strong>{{ t "Stichwörtern" }}</strong> {{ t "ordnet die App Bankumsätze automatisch der Kategorie zu (z. B. für eine Kategorie Lebensmittel „billa, spar, hofer“, für Telefon „magenta, a1“)." }}
+      {{ t "Der" }} <strong>{{ t "Standard-USt-Satz" }}</strong> {{ t "wird für Ausgaben dieser Kategorie vorgeschlagen." }}</p>
+  </div>
+</header>
+
+<div class="cols-main">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Alle Kategorien" }}</h2><span class="badge">{{ len .Categories }}</span></div>
+    {{ if .Categories }}
+    <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>{{ t "Name" }}</th><th>{{ t "Art" }}</th><th>{{ t "Stichwörter" }}</th><th>{{ t "USt" }}</th>{{ if datev }}<th>{{ t "Konto" }}</th><th>{{ t "Gegenkonto" }}</th>{{ end }}<th></th></tr></thead>
+      <tbody>
+        {{ range .Categories }}
+        <tr>
+          <td><a href="/entries?category={{ .ID }}&amp;year=alle">{{ .Name }}</a>{{ if lt .Deductible 100 }} <span class="badge" title="{{ t "Anteil, der den Gewinn mindert" }}">{{ tf "%d %% absetzbar" .Deductible }}</span>{{ end }}</td>
+          <td>{{ template "direction" .Direction }}</td>
+          <td class="small">{{ with .Keywords }}{{ . }}{{ else }}<span class="muted">—</span>{{ end }}</td>
+          <td class="num">{{ if .HasDefaultVAT }}{{ .VAT }} %{{ else }}<span class="muted">—</span>{{ end }}</td>
+          {{ if datev }}<td class="num">{{ if .DefaultKonto }}{{ .DefaultKonto }}{{ else }}<span class="muted">—</span>{{ end }}</td>
+          <td class="num">{{ if .DefaultGegenkonto }}{{ .DefaultGegenkonto }}{{ else }}<span class="muted">—</span>{{ end }}</td>{{ end }}
+          <td class="r"><a class="btn ghost sm" href="/categories/{{ .ID }}" aria-label="{{ tf "%s bearbeiten" .Name }}">{{ template "icon" "edit" }}</a></td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+    </div>
+    {{ else }}
+    <div class="empty">{{ template "icon" "tag" }}<p>{{ t "Noch keine Kategorien angelegt." }}</p></div>
+    {{ end }}
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Kategorie anlegen" }}</h2></div>
+    <form method="post" action="/categories" class="card-body form">
+      {{ template "category-fields" .Form }}
+      <div class="actions"><button type="submit" class="primary">{{ template "icon" "plus" }} {{ t "Kategorie anlegen" }}</button></div>
+    </form>
+  </section>
+</div>
+{{ end }}
+
+{{ define "category-fields" }}
+{{ template "category-auto" . }}
+<label class="field"><span>{{ t "Name" }}</span>
+  <input type="text" name="name" required maxlength="100" value="{{ index . "name" }}" placeholder="{{ t "z. B. Bürobedarf" }}">
+</label>
+{{ $dir := index . "direction" }}
+<div class="field"><span class="label">{{ t "Art" }}</span>
+  <div class="segmented" role="radiogroup" aria-label="{{ t "Art" }}">
+    <label><input type="radio" name="direction" value="outgoing" {{ if or (eq $dir "outgoing") (eq $dir "") }}checked{{ end }}><span class="seg-out">{{ t "Ausgabe" }}</span></label>
+    <label><input type="radio" name="direction" value="income" {{ if eq $dir "income" }}checked{{ end }}><span class="seg-in">{{ t "Einnahme" }}</span></label>
+    <label><input type="radio" name="direction" value="both" {{ if eq $dir "both" }}checked{{ end }}><span>{{ t "beides" }}</span></label>
+  </div>
+</div>
+{{ if datev }}
+<div class="fields-2">
+  <label class="field"><span>{{ t "Konto" }} <span class="hint">{{ t "optional" }}</span></span>
+    <input type="text" name="default_konto" inputmode="numeric" value="{{ index . "default_konto" }}">
+  </label>
+  <label class="field"><span>{{ t "Gegenkonto" }} <span class="hint">{{ t "optional" }}</span></span>
+    <input type="text" name="default_gegenkonto" inputmode="numeric" value="{{ index . "default_gegenkonto" }}">
+  </label>
+</div>
+{{ end }}
+{{ end }}

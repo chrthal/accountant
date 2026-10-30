@@ -1,0 +1,135 @@
+{{/* The help in German. help/en.html holds the same sections with the same
+     ids; TestHelpLanguagesMatch keeps them in step. */}}
+{{ define "help-de" }}
+<nav class="card card-body help-toc" aria-label="Inhalt">
+  <ol>
+    <li><a href="#start">Erste Schritte</a></li>
+    <li><a href="#buchungen">Buchungen</a></li>
+    <li><a href="#belege">Belege</a></li>
+    <li><a href="#bank">Bank</a></li>
+    <li><a href="#rechnungen">Rechnungen</a></li>
+    <li><a href="#stammdaten">Kategorien und Kontakte</a></li>
+    <li><a href="#kleinunternehmer">Kleinunternehmerregelung und SVS</a></li>
+    <li><a href="#auswertung">Auswertung, Umsatzsteuer und Export</a></li>
+    <li><a href="#sicherung">Datensicherung und Archiv</a></li>
+    <li><a href="#einstellungen">Einstellungen</a></li>
+    <li><a href="#app">Anmeldung, Design und App</a></li>
+  </ol>
+</nav>
+
+<section class="card card-body help section" id="start">
+  <h2>Erste Schritte</h2>
+  <ol>
+    <li>Unter <a href="/settings">Einstellungen</a> die eigenen Absenderdaten eintragen: Name, Adresse, UID-Nummer (falls vorhanden), IBAN. Ohne Absender kann keine Rechnung ausgestellt werden.</li>
+    <li>Festlegen, ob die Kleinunternehmerregelung gilt, und Sprache und Datumsformat wählen.</li>
+    <li>Die <a href="/categories">Kategorien</a> durchsehen. Eine neue Installation bringt eine Auswahl üblicher Kategorien mit; sie lassen sich ändern, ergänzen und um eigene Stichwörter erweitern.</li>
+    <li>Den ersten Kontoauszug unter <a href="/bank">Bank</a> importieren, oder die erste Buchung von Hand <a href="/entries/new">erfassen</a>.</li>
+  </ol>
+  <p>Wer von einer anderen Installation umzieht, spielt stattdessen eine Sicherung ein, siehe <a href="#sicherung">Datensicherung</a>.</p>
+</section>
+
+<section class="card card-body help section" id="buchungen">
+  <h2>Buchungen</h2>
+  <p>Die App führt eine Einnahmen-Ausgaben-Rechnung: jede Einnahme und jede Ausgabe ist eine Buchung mit Belegdatum, Bruttobetrag und USt-Satz. Netto und Umsatzsteuer rechnet die App aus.</p>
+  <ul>
+    <li><strong>Erfassen:</strong> <a href="/entries/new">Buchung erfassen</a>. Die Kategorie ist optional; hat sie einen Standard-USt-Satz, wird er vorgeschlagen. Ein Beleg (Foto oder PDF) kann gleich mit hochgeladen werden.</li>
+    <li><strong>Unveränderlich:</strong> eine gespeicherte Buchung wird nicht mehr geändert oder gelöscht. Ein Fehler wird mit <em>Stornieren</em> auf der Buchung korrigiert: das legt eine Gegenbuchung an, danach bucht man richtig neu. So bleibt nachvollziehbar, was wann gebucht wurde. Nur die <em>Beschreibung</em> lässt sich auf der Buchung ändern; die ursprüngliche und jede Änderung bleiben dort sichtbar.</li>
+    <li><strong>Teilweise privat genutzt</strong>, etwa Telefon oder Internet: im Formular unter <em>Teilweise privat genutzt?</em> den betrieblichen Anteil eintragen (Vorgabe 100 %) und notieren, wie er ermittelt wurde. Nur dieser Anteil zählt für den Gewinn und für die Vorsteuer; unter 10 % betrieblicher Nutzung gibt es keine Vorsteuer. Gebucht bleibt der volle Betrag, weil er vom Geschäftskonto bezahlt wurde. Die nächste Rechnung vom selben Bankpartner übernimmt den Anteil. Auf der Buchung lässt sich der Anteil später ändern; der ursprüngliche bleibt sichtbar. Den Anteil mit der Steuerberatung abstimmen.</li>
+    <li><strong>Anschaffungen über 1.000 €</strong> (netto) werden abgeschrieben: auf der Buchung <em>Als Anlage abschreiben</em> mit Nutzungsdauer und Datum der Inbetriebnahme. Die App rechnet die lineare AfA (ab 1. Juli halb im ersten Jahr) und führt das <a href="/assets">Anlagenverzeichnis</a>.</li>
+    <li><strong>Liste:</strong> unter <a href="/entries">Buchungen</a> nach Jahr, Monat, Art, Kategorie und Text filtern. Der Filter <em>Ausgaben ohne Beleg</em> zeigt, wo ein Beleg fehlt; die Übersicht erinnert ebenfalls daran.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="belege">
+  <h2>Belege</h2>
+  <p>Belege werden mit ihrer Buchung in der Datenbank gespeichert und sind damit Teil jeder Sicherung. Sie sind sieben Jahre aufzubewahren (§ 132 BAO) und lassen sich deshalb hinzufügen, aber nicht ersetzen oder löschen.</p>
+  <ul>
+    <li><strong>Beleg erfassen:</strong> unter <a href="/receipts/new">Beleg erfassen</a> ein Foto oder eine PDF-Rechnung hochladen. Ist auf dem Server die Texterkennung installiert, schlägt die App Betrag, Datum und USt-Satz vor. Die Werte immer prüfen, bevor man speichert.</li>
+    <li><strong>Viele auf einmal:</strong> unter <em>Mehrere Belege auf einmal</em> alle Fotos und PDFs zugleich auswählen. Sie kommen auf eine Warteliste und werden dort im Hintergrund gelesen, mehrere gleichzeitig; die Liste zeigt, welche noch gelesen werden, und aktualisiert sich von selbst. Geprüft wird in einer Liste mit Vorschau; Kategorie und USt-Satz werden aus den Stichwörtern vorgeschlagen, ein schon gebuchter Beleg wird erkannt. <em>Angehakte buchen</em> bucht jeden mit seinem Beleg.</li>
+    <li><strong>Nachreichen:</strong> auf einer Buchung ohne Beleg lässt sich der Beleg später hinzufügen.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="bank">
+  <h2>Bank</h2>
+  <ul>
+    <li><strong>Import:</strong> unter <a href="/bank">Bank</a> den CSV-Export der Bank hochladen (<em>Kontoauszug importieren</em>). Beim ersten Mal ordnet man die Spalten zu; die App merkt sich das für dieses Bankformat. Dieselbe Datei zweimal zu importieren ist unbedenklich, bekannte Umsätze werden übersprungen.</li>
+    <li><strong>Zuordnen:</strong> jeder offene Umsatz wird einer Buchung zugeordnet. <em>Buchung anlegen</em> öffnet das Formular mit den Daten des Umsatzes, <em>Buchung wählen</em> verbindet ihn mit einer bestehenden Buchung.</li>
+    <li><strong>Zahlungseingänge:</strong> nennt eine Überweisung die Rechnungsnummer und den offenen Betrag, bietet die App <em>Rechnung … bezahlt</em> an. <em>Alle eindeutigen zuordnen</em> erledigt das für alle sicheren Fälle auf einmal.</li>
+    <li><strong>Privat:</strong> Überweisungen zwischen Geschäftskonto und Ihnen selbst sind Privatentnahmen oder Privateinlagen, keine Einnahmen oder Ausgaben. <em>Privat</em> markiert einen Umsatz so; Überweisungen an den eigenen Namen erkennt die App und markiert sie auf Wunsch alle auf einmal. Wurden solche Überweisungen schon als Ausgabe gebucht, bucht <em>Als privat umbuchen</em> sie um: Storno am selben Tag, dann privat. Die Summen stehen unter <a href="/reports">Jahr &amp; Export</a>.</li>
+    <li><strong>Vorschläge:</strong> die <a href="/bank/drafts">Buchungsvorschläge</a> schlagen für offene Umsätze eine Buchung vor: wie die letzte Buchung zur selben Gegenseite, sonst nach den Stichwörtern der Kategorien. Optional hilft ein lokales Sprachmodell bei neuen Gegenseiten (siehe README). Nichts wird von selbst gebucht: man prüft, hakt an und bucht.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="rechnungen">
+  <h2>Rechnungen</h2>
+  <ul>
+    <li><strong>Erstellen:</strong> <a href="/invoices/new">Rechnung erstellen</a> mit Empfänger (ein Kontakt), Rechnungs- und Leistungsdatum und den Positionen, jede mit eigenem USt-Satz.</li>
+    <li><strong>Entwurf, Vorschau, Ausstellen:</strong> <em>Als Entwurf speichern</em> hebt die Rechnung ohne Nummer auf, sie lässt sich weiter ändern oder löschen. <em>Vorschau (PDF)</em> zeigt sie mit dem Wasserzeichen „Entwurf“. Erst <em>Rechnung ausstellen</em> vergibt die Nummer; danach ist die Rechnung unveränderlich. Eine Korrektur ist eine neue Rechnung.</li>
+    <li><strong>PDF:</strong> mit Logo, allen Pflichtangaben nach § 11 UStG und einem Zahlungs-QR-Code, den Banking-Apps lesen. Logo, Bankdaten und Nummernschema stellt man unter <a href="/settings">Einstellungen</a> ein.</li>
+    <li><strong>Zahlung:</strong> <em>Zahlung buchen</em> auf der Rechnung bucht den Geldeingang als Einnahme, oder der Zahlungseingang wird unter <a href="/bank">Bank</a> zugeordnet. Ein kleinerer Betrag ist eine Teilzahlung; die Rechnung bleibt mit dem Rest offen. Offene und überfällige Beträge stehen in der Rechnungsliste.</li>
+    <li><strong>Wiederkehrende Rechnungen</strong> (etwa Hosting): auf einer Rechnung <em>Als wiederkehrend anlegen</em>, oder beim Kunden unter <em>Wiederkehrende Rechnungen</em>. Mit Rhythmus (monatlich, vierteljährlich, jährlich) und dem Datum der nächsten Rechnung; <code>{Zeitraum}</code> in einer Position wird durch den Monat, das Quartal oder das Jahr ersetzt. Eine Woche vorher erinnern Übersicht und Rechnungsliste; <em>Rechnung erstellen</em> öffnet das vorausgefüllte Formular. Verschickt wird nichts automatisch. Mit dem Ausstellen rückt die nächste Rechnung einen Zeitraum weiter; ein Zeitraum lässt sich auch überspringen oder die Vorlage pausieren. <em>Als Vorlage</em> kopiert eine Rechnung einmalig in eine neue.</li>
+    <li><strong>Import:</strong> Rechnungen aus einem anderen Programm lassen sich mit <a href="/invoices/import">Rechnung importieren</a> als PDF übernehmen. Sie zählen dann wie ausgestellte Rechnungen, das Original-PDF bleibt erhalten. Beim Umstieg mit vielen Rechnungen wählt man unter <em>Mehrere Rechnungen auf einmal</em> alle PDFs zugleich aus, prüft sie in einer Liste und importiert die angehakten.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="stammdaten">
+  <h2>Kategorien und Kontakte</h2>
+  <ul>
+    <li><strong>Kategorien</strong> gruppieren Buchungen für die Auswertung. <em>Stichwörter</em> ordnen Bankumsätze automatisch zu, etwa „magenta, a1 telekom“ für Telefon. Ein <em>Standard-USt-Satz</em> wird bei Ausgaben der Kategorie vorgeschlagen. Noch vor den Stichwörtern zählen frühere Buchungen: ein Bankumsatz oder Beleg, dessen Gegenseite einer früheren Buchung ähnelt, bekommt deren Kategorie, Kontakt und USt-Satz vorgeschlagen („ähnliche Buchung“). <em>Steuerlich absetzbar</em> 50 % gilt für Bewirtung mit Werbecharakter: die Hälfte zählt für den Gewinn, die Vorsteuer bleibt voll.</li>
+    <li><strong>Kontakte</strong> sind Kunden und Lieferanten. Rechnungen brauchen einen Kontakt als Empfänger. Ein Kontakt lässt sich löschen, solange keine Rechnung und keine Buchung auf ihn verweist.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="kleinunternehmer">
+  <h2>Kleinunternehmerregelung und SVS</h2>
+  <ul>
+    <li>Die Kleinunternehmerregelung (§ 6 Abs 1 Z 27 UStG) wird unter <a href="/settings">Einstellungen</a> mit ihrem Zeitraum eingetragen: <em>Gilt seit</em> und beim Abschalten <em>Galt bis</em>. Jede Zahl richtet sich nach dem Belegdatum.</li>
+    <li>In dieser Zeit tragen Rechnungen keine Umsatzsteuer, sondern den Befreiungshinweis. Ausgaben behalten den USt-Satz ihres Belegs; diese USt wird erfasst, aber nie als Vorsteuer abgezogen.</li>
+    <li>Die Übersicht und <a href="/reports">Jahr &amp; Export</a> zeigen den Umsatz gegenüber der Grenze von 55.000 € brutto und der Toleranz bis 60.500 €.</li>
+    <li>Wer die SVS-Ausnahme für Kleinunternehmer beantragt hat, schaltet sie in den Einstellungen ein; dann zeigt die Übersicht auch die SVS-Grenzen.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="auswertung">
+  <h2>Auswertung, Umsatzsteuer und Export</h2>
+  <ul>
+    <li><strong><a href="/reports">Jahr &amp; Export</a>:</strong> Jahressummen, der Gewinn der Einnahmen-Ausgaben-Rechnung (mit AfA und nur dem absetzbaren Teil der Ausgaben), Summen nach Kategorie, Kleinunternehmergrenze und SVS.</li>
+    <li><strong><a href="/reports/vat">Umsatzsteuer</a>:</strong> USt aus Einnahmen, Vorsteuer und Zahllast je Monat oder Quartal. Das ist eine Rechenhilfe, keine Umsatzsteuervoranmeldung.</li>
+    <li><strong>Export für die Steuerberatung</strong>, auf beiden Seiten und unter Einstellungen mit Wahl des Jahres:
+      <em>CSV</em> mit allen Buchungen und einer USt-Zusammenfassung; das <em>Archiv mit Belegen</em> als ZIP mit der CSV, allen Belegen und allen Rechnungen des Jahres; und, wenn unter Einstellungen eingeschaltet, der <em>DATEV</em>-Buchungsstapel.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="sicherung">
+  <h2>Datensicherung und Archiv</h2>
+  <ul>
+    <li><strong>Sicherung:</strong> unter <a href="/settings#backup">Einstellungen, Datensicherung</a> herunterladen. Sie enthält alle Bücher, Rechnungen, Belege und Einstellungen. Auf dem Server kann die App täglich automatisch sichern; die Übersicht warnt, wenn die letzte Sicherung über eine Woche alt ist. Sicherungen auch außerhalb des Servers aufbewahren.</li>
+    <li><strong>Wiederherstellen:</strong> in einer neuen, leeren Installation erscheint an derselben Stelle ein Formular zum Hochladen der Sicherung. Die Datei wird vollständig geprüft, bevor etwas übernommen wird. Über bestehende Bücher wird nie wiederhergestellt.</li>
+    <li><strong>Archiv:</strong> das Jahresarchiv (siehe <a href="#auswertung">Export</a>) lässt sich ohne die App öffnen und weitergeben. Es ersetzt die Sicherung nicht: die App wiederherstellen kann nur die Sicherung.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="einstellungen">
+  <h2>Einstellungen</h2>
+  <ul>
+    <li><strong>Rechnungssteller:</strong> Name, Adresse, UID-Nummer, IBAN und BIC, Kontakt für die Fußzeile, Zahlungsziel.</li>
+    <li><strong>Rechnungsnummern:</strong> fortlaufend im Jahr (2026-0001) oder nach Datum mit einer Nummer pro Tag (E260112001), mit einem Präfix nach Wahl.</li>
+    <li><strong>Logo</strong> für die Rechnungs-PDFs.</li>
+    <li><strong>Anzeige:</strong> Sprache (Deutsch oder Englisch) und Datumsformat.</li>
+    <li><strong>Umsatzsteuer:</strong> Standard-USt-Satz für Ausgaben, Kleinunternehmerregelung mit Zeitraum, SVS-Ausnahme.</li>
+    <li><strong>Benachrichtigungen per E-Mail:</strong> Erinnerungen an wiederkehrende und überfällige Rechnungen, Datensicherung und wartende Belege, an eine Adresse von Ihnen, nie an Kunden. Den Mailserver (Server, Benutzer, Passwort) trägt man hier ein und probiert ihn mit <em>Test-Mail senden</em> aus; das Passwort wird nie wieder angezeigt und steht in keiner Sicherung.</li>
+    <li><strong>DATEV-Export:</strong> nur nötig, wenn die Steuerberatung mit DATEV arbeitet. Ausgeschaltet verschwinden die Kontofelder; bereits eingetragene Konten bleiben gespeichert.</li>
+  </ul>
+</section>
+
+<section class="card card-body help section" id="app">
+  <h2>Anmeldung, Design und App</h2>
+  <ul>
+    <li><strong>Anmeldung:</strong> wer den Server betreibt, kann ein Passwort setzen (siehe README); dann fragt die App beim Öffnen danach.</li>
+    <li><strong>Hell und dunkel:</strong> der Schalter unten in der Seitenleiste (am Handy oben) wechselt zwischen System, hell und dunkel.</li>
+    <li><strong>Als App:</strong> im Browser „Zum Startbildschirm hinzufügen“ oder „Installieren“ wählen, dann öffnet sich die Buchhaltung wie eine eigene App.</li>
+  </ul>
+  <p class="note">Die App ist eine Rechenhilfe und keine Steuerberatung. Wo eine Regel unklar ist, weist sie darauf hin, statt zu raten; im Zweifel mit der Steuerberatung klären.</p>
+</section>
+{{ end }}

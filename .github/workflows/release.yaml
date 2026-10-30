@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Plain docker CLI on purpose — no docker/build-push-action or setup-buildx.
+# amd64-only means there is nothing for buildx to do (ADR 0005).
+jobs:
+  release:
+    # ubuntu-latest is x64, which is what the amd64 assertion below relies on.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      # A tag should never publish something that does not pass its own tests.
+      # SQLite-only here — the full both-engines run is CI's job on the way to
+      # main; a tag points at an already-tested commit.
+      - name: Test
+        run: |
+          go vet ./...
+          go test ./...
+
+      # Before anything is built or pushed: a tag without a CHANGELOG.md
+      # section stops here.
+      - name: Release notes from CHANGELOG.md
+        run: |
+          go run ./tools/releasenotes "$GITHUB_REF_NAME" "$IMAGE" > "$RUNNER_TEMP/release.json"
+          jq -r .body "$RUNNER_TEMP/release.json" > "$RUNNER_TEMP/notes.md"
+
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg VERSION="${{ steps.version.outputs.version }}" \
+            -t "$IMAGE:${{ steps.version.outputs.version }}" \
+            -t "$IMAGE:latest" \
+            .
+
+      # Two things that must hold before anything is published: the image is
+      # amd64 (the Dockerfile builds for the host arch, so this asserts the
+      # runner is what ADR 0005 assumes), and the ldflags stamping survived —
+      # a released image reporting "dev" is a broken release.
+      - name: Verify image
+        run: |
+          arch=$(docker image inspect --format '{{.Architecture}}' "$IMAGE:${{ steps.version.outputs.version }}")
+          echo "image architecture: $arch"
+          test "$arch" = "amd64"
+
+          got=$(docker run --rm "$IMAGE:${{ steps.version.outputs.version }}" -version)
+          echo "image reports: $got"
+          test "$got" = "${{ steps.version.outputs.version }}"
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE:${{ steps.version.outputs.version }}"
+          docker push "$IMAGE:latest"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"

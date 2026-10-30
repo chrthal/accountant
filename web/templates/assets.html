@@ -1,0 +1,43 @@
+{{ define "title" }}{{ t "Anlagenverzeichnis" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Auswertung" }}</p>
+    <h1>{{ tf "Anlagenverzeichnis %d" .Year }}</h1>
+    <p class="lede">{{ t "Anschaffungen, die über ihre Nutzungsdauer abgeschrieben werden: lineare AfA nach § 7 EStG, im ersten Jahr halb, wenn das Wirtschaftsgut erst ab 1. Juli genutzt wird. Eine Anlage legt man auf der Seite der Ausgabe an." }}</p>
+  </div>
+  <div class="page-actions">
+    <span class="year-nav">
+      <a href="/assets?year={{ dec .Year }}" aria-label="{{ t "Vorjahr" }}">{{ template "icon" "left" }}</a>
+      <strong>{{ .Year }}</strong>
+      <a href="/assets?year={{ inc .Year }}" aria-label="{{ t "Folgejahr" }}">{{ template "icon" "right" }}</a>
+    </span>
+  </div>
+</header>
+
+<section class="card">
+  {{ if not .Assets }}
+  <div class="empty">{{ template "icon" "clock" }}<p>{{ t "Keine Anlagen in diesem Jahr." }}</p>
+    <a class="btn" href="/entries?direction=outgoing">{{ t "Zu den Ausgaben" }}</a></div>
+  {{ else }}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>{{ t "Bezeichnung" }}</th><th>{{ t "In Betrieb seit" }}</th><th class="r">{{ t "Nutzungsdauer" }}</th>
+      <th class="r">{{ t "Anschaffungskosten" }}</th><th class="r">{{ tf "AfA %d" .Year }}</th><th class="r">{{ tf "Restbuchwert Ende %d" .Year }}</th></tr></thead>
+    <tbody>
+      {{ range .Assets }}
+      <tr><td><a href="/entries/{{ .EntryID }}#anlage">{{ .Name }}</a></td>
+        <td>{{ date .InUseFrom }}</td>
+        <td class="r">{{ tf "%d Jahre" .UsefulLifeYears }}</td>
+        <td class="r amount">{{ eur .CostCents }}</td>
+        <td class="r amount">{{ eur (.AfA $.Year) }}</td>
+        <td class="r amount">{{ eur (.BookValue $.Year) }}</td></tr>
+      {{ end }}
+    </tbody>
+  </table>
+  </div>
+  {{ end }}
+</section>
+<p class="note section">{{ t "Nicht abgebildet sind die degressive AfA und das Ausscheiden einer Anlage vor dem Ende der Nutzungsdauer (Verkauf, Entnahme, Verlust). Das ist eine Rechenhilfe, keine Steuerberatung." }}</p>
+{{ end }}

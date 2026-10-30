@@ -1,0 +1,79 @@
+{{ define "title" }}{{ tf "Umsatzsteuer %d" .Year }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Auswertung" }}</p>
+    <h1>{{ tf "Umsatzsteuer %d" .Year }}</h1>
+    <p class="lede">{{ t "USt aus Einnahmen und Vorsteuer aus Ausgaben je Zeitraum, so wie gebucht. Stornierte Paare zählen nicht." }}</p>
+  </div>
+  <div class="page-actions">
+    <span class="year-nav">
+      <a href="/reports/vat?year={{ dec .Year }}&amp;period={{ index .Form "period" }}" aria-label="{{ t "Vorjahr" }}">{{ template "icon" "left" }}</a>
+      <strong>{{ .Year }}</strong>
+      <a href="/reports/vat?year={{ inc .Year }}&amp;period={{ index .Form "period" }}" aria-label="{{ t "Folgejahr" }}">{{ template "icon" "right" }}</a>
+    </span>
+    <span class="segmented" role="group" aria-label="{{ t "Zeitraum" }}">
+      <a class="btn sm {{ if eq (index .Form "period") "quarter" }}primary{{ else }}ghost{{ end }}" href="/reports/vat?year={{ .Year }}&amp;period=quarter">{{ t "Quartal" }}</a>
+      <a class="btn sm {{ if eq (index .Form "period") "month" }}primary{{ else }}ghost{{ end }}" href="/reports/vat?year={{ .Year }}&amp;period=month">{{ t "Monat" }}</a>
+    </span>
+  </div>
+</header>
+
+{{ if ne .KUCoverage "none" }}
+<div class="alert warn">{{ template "icon" "info" }}
+  <p>{{ if eq .KUCoverage "partial" }}{{ tf "Die Kleinunternehmerregelung galt in diesem Jahr nur zeitweise (%s). In dieser Zeit wird keine Umsatzsteuer geschuldet und keine Vorsteuer abgezogen, danach ganz normal." .KUPeriodText }}{{ else }}{{ t "Die Kleinunternehmerregelung galt das ganze Jahr: es wird keine Umsatzsteuer geschuldet und keine Vorsteuer abgezogen." }}{{ end }} {{ t "Die USt auf Ausgaben ist nur festgehalten, wie sie auf den Belegen steht. Sie ist Teil der Ausgaben und wird nicht gegengerechnet." }}</p></div>
+{{ end }}
+
+{{ with .VATTotal }}
+<section class="cols-3" aria-label="{{ t "Jahressummen" }}">
+  <div class="card kpi"><div class="kpi-label"><span class="dot pos"></span> {{ t "USt aus Einnahmen" }}</div>
+    <div class="kpi-value num">{{ eur .OutputVATCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ tf "auf netto %s €" (eur .OutputNetCents) }}</div></div>
+  <div class="card kpi"><div class="kpi-label"><span class="dot neg"></span> {{ t "Vorsteuer" }}</div>
+    <div class="kpi-value num">{{ eur .InputVATCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ t "abziehbar" }}{{ if .InputVATBlockedCents }}{{ tf ", dazu %s € USt aus der Kleinunternehmerzeit, nicht abziehbar" (eur .InputVATBlockedCents) }}{{ end }}{{ if .InputVATPrivateCents }}{{ tf ", dazu %s € USt auf Privatanteile, nicht abziehbar" (eur .InputVATPrivateCents) }}{{ end }}</div></div>
+  {{ if ne $.KUCoverage "full" }}
+  <div class="card kpi hero"><div class="kpi-label"><span class="dot"></span> {{ if neg .PayableCents }}{{ tf "Gutschrift %d" $.Year }}{{ else }}{{ tf "Zahllast %d" $.Year }}{{ end }}</div>
+    <div class="kpi-value num">{{ eur (abs .PayableCents) }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ t "USt − Vorsteuer" }}</div></div>
+  {{ else }}
+  <div class="card kpi hero"><div class="kpi-label"><span class="dot"></span> {{ tf "Zahllast %d" $.Year }}</div>
+    <div class="kpi-value num">{{ eur 0 }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ t "Kleinunternehmer: keine Zahllast und keine Gutschrift" }}</div></div>
+  {{ end }}
+</section>
+{{ end }}
+
+<section class="card section">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>{{ t "Zeitraum" }}</th><th class="r">{{ t "Umsatz netto" }}</th><th class="r">{{ t "davon 20 / 13 / 10 %" }}</th><th class="r">{{ t "steuerfrei" }}</th><th class="r">{{ t "USt" }}</th><th class="r">{{ t "Vorsteuer" }}</th>{{ if .VATTotal.InputVATBlockedCents }}<th class="r" title="{{ t "USt auf Ausgaben in der Kleinunternehmerzeit" }}">{{ t "USt n. abz." }}</th>{{ end }}<th class="r">{{ t "Zahllast" }}</th></tr></thead>
+      <tbody>
+        {{ range .Periods }}
+        <tr>
+          <td><a href="/entries?year={{ $.Year }}{{ if eq (index $.Form "period") "month" }}&amp;month={{ slice .From 5 7 }}{{ end }}">{{ t .Label }}</a><br><span class="meta">{{ date .From }} – {{ date .To }}</span></td>
+          <td class="r amount">{{ eur .OutputNetCents }}</td>
+          <td class="r small">{{ range $i, $r := .Output }}{{ if $i }}<br>{{ end }}{{ $r.Rate }} %: <span class="amount">{{ eur $r.NetCents }}</span> → <span class="amount">{{ eur $r.VATCents }}</span>{{ else }}<span class="muted">—</span>{{ end }}</td>
+          <td class="r amount">{{ eur .ExemptNetCents }}</td>
+          <td class="r amount">{{ eur .OutputVATCents }}</td>
+          <td class="r amount">{{ eur .InputVATCents }}</td>
+          {{ if $.VATTotal.InputVATBlockedCents }}<td class="r amount muted">{{ eur .InputVATBlockedCents }}</td>{{ end }}
+          <td class="r amount {{ if and (ne .KU "full") (neg .PayableCents) }}pos{{ end }}">{{ if eq .KU "full" }}<span class="muted" title="{{ t "Kleinunternehmer" }}">—</span>{{ else }}{{ eur .PayableCents }}{{ end }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+      {{ with .VATTotal }}
+      <tfoot><tr><td>{{ t "Jahr" }}</td><td class="r amount">{{ eur .OutputNetCents }}</td><td></td>
+        <td class="r amount">{{ eur .ExemptNetCents }}</td><td class="r amount">{{ eur .OutputVATCents }}</td>
+        <td class="r amount">{{ eur .InputVATCents }}</td>{{ if .InputVATBlockedCents }}<td class="r amount muted">{{ eur .InputVATBlockedCents }}</td>{{ end }}<td class="r amount">{{ if eq $.KUCoverage "full" }}{{ eur 0 }}{{ else }}{{ eur .PayableCents }}{{ end }}</td></tr></tfoot>
+      {{ end }}
+    </table>
+  </div>
+</section>
+
+<section class="card card-body section note">
+  <p><strong>{{ t "Das ist eine Rechenhilfe, keine Umsatzsteuervoranmeldung." }}</strong> {{ t "Zugeordnet wird nach dem Buchungsdatum. Das entspricht der Istbesteuerung, bei der die Einnahme im Zeitraum des Zahlungseingangs zählt. Ob sie für Sie gilt, und wann die Vorsteuer abgezogen werden darf (dafür braucht es die Rechnung, nicht nur die Zahlung), klärt die Steuerberatung." }}</p>
+  <p>{{ t "Die Zahlen sind bewusst" }} <strong>{{ t "keinen Kennzahlen des Formulars U30" }}</strong> {{ t "zugeordnet. Eine falsche Zuordnung sähe plausibel aus und wäre trotzdem falsch. Steuerfreie Umsätze (0 %) werden getrennt ausgewiesen, weil ihr Befreiungsgrund hier nicht erfasst ist." }}</p>
+</section>
+{{ end }}

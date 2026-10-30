@@ -1,0 +1,14 @@
+# Override that runs the app on SQLite instead of Postgres — the single-file,
+# no-server path (ADR 0006).
+#
+# Pass --no-deps, or Postgres starts anyway: an override file cannot clear the
+# depends_on list compose.yaml sets.
+#
+#   make up-sqlite
+#   docker compose -f compose.yaml -f compose.sqlite.yaml up --build -d --no-deps app
+
+# The bookkeeper-data volume on /data comes from compose.yaml.
+services:
+  app:
+    environment:
+      BOOKKEEPER_DSN: sqlite:///data/bookkeeper.db

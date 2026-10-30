@@ -1,0 +1,66 @@
+{{ define "title" }}{{ t "Kontakte" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Stammdaten" }}</p>
+    <h1>{{ t "Kontakte" }}</h1>
+    <p class="lede">{{ t "Kunden und Lieferanten. Rechnungen übernehmen Name, Adresse und UID beim Ausstellen. Eine spätere Änderung hier ändert keine ausgestellte Rechnung." }}</p>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+<div class="cols-main">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Alle Kontakte" }}</h2><span class="badge">{{ len .Contacts }}</span></div>
+    {{ if not .Contacts }}
+      <div class="empty">{{ template "icon" "users" }}<p>{{ t "Noch keine Kontakte erfasst." }}</p></div>
+    {{ else }}
+    <ul class="ledger">
+      {{ range .Contacts }}
+      <li><a class="ledger-row" href="/contacts/{{ .ID }}">
+        <span class="glyph">{{ template "icon" "users" }}</span>
+        <span>
+          <span class="title">{{ .Name }}</span>
+          <span class="sub">{{ with .UID }}UID {{ . }}{{ end }}{{ with .Email }} · {{ . }}{{ end }}{{ with .Address }} · {{ . }}{{ end }}</span>
+        </span>
+        <span class="figure"><span class="badge">{{ template "kind" .Kind }}</span></span>
+      </a></li>
+      {{ end }}
+    </ul>
+    {{ end }}
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Neuer Kontakt" }}</h2></div>
+    <form method="post" action="/contacts" class="card-body form">
+      {{ template "contact-fields" .Form }}
+      <div class="actions"><button type="submit" class="primary">{{ template "icon" "plus" }} {{ t "Kontakt speichern" }}</button></div>
+    </form>
+  </section>
+</div>
+{{ end }}
+
+{{ define "contact-fields" }}
+<label class="field"><span>{{ t "Name" }}</span>
+  <input type="text" name="name" required value="{{ index . "name" }}">
+</label>
+<label class="field"><span>{{ t "Art" }}</span>
+  <select name="kind">
+    {{ $k := index . "kind" }}
+    <option value="customer" {{ if eq $k "customer" }}selected{{ end }}>{{ t "Kunde" }}</option>
+    <option value="vendor"   {{ if eq $k "vendor"   }}selected{{ end }}>{{ t "Lieferant" }}</option>
+    <option value="both"     {{ if eq $k "both"     }}selected{{ end }}>{{ t "beides" }}</option>
+  </select>
+</label>
+<label class="field"><span>{{ t "UID-Nummer" }} <span class="hint">{{ t "optional" }}</span></span>
+  <input type="text" name="uid" value="{{ index . "uid" }}" placeholder="ATU12345678">
+</label>
+<label class="field"><span>{{ t "Adresse" }} <span class="hint">{{ t "optional" }}</span></span>
+  <textarea name="address" rows="2">{{ index . "address" }}</textarea>
+</label>
+<label class="field"><span>{{ t "E-Mail" }} <span class="hint">{{ t "optional" }}</span></span>
+  <input type="email" name="email" value="{{ index . "email" }}">
+</label>
+{{ end }}

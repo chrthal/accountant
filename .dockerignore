@@ -1,0 +1,12 @@
+.git
+.github
+docs
+plans
+*.db
+*.db-shm
+*.db-wal
+bookkeeper
+dist
+.env
+CLAUDE.md
+README.md

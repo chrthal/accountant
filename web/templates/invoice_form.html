@@ -1,0 +1,112 @@
+{{ define "title" }}{{ if index .Form "import" }}{{ t "Rechnung importieren" }}{{ else if index .Form "draft_id" }}{{ t "Entwurf bearbeiten" }}{{ else }}{{ t "Rechnung erstellen" }}{{ end }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    {{ if index .Form "import" }}
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ t "importieren" }}</p>
+    <h1>{{ t "Rechnung importieren" }}</h1>
+    <p class="lede">{{ t "Bitte mit der Original-PDF vergleichen. Die Positionen bestimmen die Beträge, die in Auswertung und offenen Posten zählen. Eine Position mit dem Gesamtbetrag genügt, wenn die Aufteilung nicht gebraucht wird." }}
+      {{ with index .Form "original_name" }}<br>{{ tf "Original: %s" . }}{{ end }}</p>
+    {{ else if index .Form "draft_id" }}
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ t "Entwurf" }}</p>
+    <h1>{{ t "Entwurf bearbeiten" }}</h1>
+    <p class="lede">{{ t "Ein Entwurf hat noch keine Nummer und lässt sich ändern oder löschen. Erst „Rechnung ausstellen“ vergibt die Nummer, danach ist die Rechnung unveränderlich." }}</p>
+    {{ else }}
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / {{ t "neu" }}</p>
+    <h1>{{ t "Rechnung erstellen" }}</h1>
+    {{ end }}
+  </div>
+</header>
+
+{{ if not .Settings.IssuerName }}
+<div class="alert error">{{ template "icon" "alert" }}
+  <p>{{ t "Es sind noch keine Absenderdaten hinterlegt. Ohne diese kann keine Rechnung ausgestellt werden." }} <a href="/settings">{{ t "Jetzt eintragen" }}</a></p></div>
+{{ end }}
+
+{{ if .Settings.Kleinunternehmer }}
+<div class="alert notice">{{ template "icon" "info" }}
+  <p>{{ t "Kleinunternehmerregelung ist aktiv: die Rechnung wird ohne Umsatzsteuer ausgestellt und trägt den Befreiungshinweis nach § 6 Abs 1 Z 27 UStG." }}</p></div>
+{{ end }}
+
+<form method="post" action="{{ if index .Form "import" }}/invoices/import/save{{ else }}/invoices{{ end }}" class="form">
+  {{ with index .Form "draft_id" }}<input type="hidden" name="draft_id" value="{{ . }}">{{ end }}
+  {{ with index .Form "recurring_id" }}<input type="hidden" name="recurring_id" value="{{ . }}">{{ end }}
+  {{ with index .Form "recurring_note" }}<div class="alert notice">{{ template "icon" "clock" }}<p>{{ . }}</p></div>{{ end }}
+  {{ if index .Form "import" }}
+  {{ with index .Form "queue_id" }}<input type="hidden" name="queue_id" value="{{ . }}">{{ else }}
+  <input type="hidden" name="original" value="{{ index .Form "original" }}">
+  <input type="hidden" name="original_name" value="{{ index .Form "original_name" }}">{{ end }}
+  <input type="hidden" name="read_total" value="{{ index .Form "read_total" }}">
+  {{ end }}
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Empfänger & Daten" }}</h2></div>
+    <div class="card-body form">
+      {{ if index .Form "import" }}
+      <label class="field"><span>{{ t "Rechnungsnummer" }} <span class="hint">{{ t "wie auf der Original-Rechnung" }}</span></span>
+        <input type="text" name="number" required maxlength="40" value="{{ index .Form "number" }}"></label>
+      {{ with index .Form "read_total" }}<p class="note">{{ tf "In der PDF gelesen: Gesamtbetrag %s €. Die Summe der Positionen sollte dazu passen." . }}</p>{{ end }}
+      {{ end }}
+      <label class="field"><span>{{ t "Empfänger" }}</span>
+        <select name="contact_id" {{ if not (index .Form "import") }}required{{ end }}>
+          <option value="">{{ t "— bitte wählen —" }}</option>
+          {{ range .Contacts }}
+            <option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (index $.Form "contact_id") }}selected{{ end }}>{{ .Name }}</option>
+          {{ end }}
+        </select>
+      </label>
+      {{ if index .Form "import" }}
+      <label class="field"><span>{{ t "oder neuer Kunde" }} <span class="hint">{{ t "wird als Kontakt angelegt, wenn oben niemand gewählt ist" }}</span></span>
+        <input type="text" name="new_contact_name" value="{{ index .Form "new_contact_name" }}"></label>
+      {{ else if not .Contacts }}<p class="meta">{{ t "Noch keine Kontakte." }} <a href="/contacts">{{ t "Zuerst einen anlegen" }}</a></p>{{ end }}
+      <div class="cols-3">
+        <label class="field"><span>{{ t "Rechnungsdatum" }}</span>
+          <input type="text" name="issue_date" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "issue_date") }}"></label>
+        <label class="field"><span>{{ t "Liefer-/Leistungsdatum" }}</span>
+          <input type="text" name="service_date" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "service_date") }}"></label>
+        <label class="field"><span>{{ t "Zahlbar bis" }} <span class="hint">{{ t "optional" }}</span></span>
+          <input type="text" name="due_date" autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "due_date") }}"></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Positionen" }}</h2><span class="meta">{{ t "Leere Positionen werden ignoriert" }}</span></div>
+    <div class="card-body">
+      <div class="lines" id="lines">
+        {{ range $i, $l := .Lines }}{{ template "invoice-line" (lineCtx $i $l $.Settings.Kleinunternehmer) }}{{ end }}
+      </div>
+      <div class="actions">
+        <button type="button" class="sm" data-add-line="lines" data-template="line-template" hidden>{{ template "icon" "plus" }} {{ t "Position hinzufügen" }}</button>
+      </div>
+      <template id="line-template">{{ template "invoice-line" (lineCtx -1 (blankLine (index .Form "default_rate")) .Settings.Kleinunternehmer) }}</template>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-body form">
+      <label class="field"><span>{{ t "Anmerkung" }} <span class="hint">{{ t "optional, steht links neben dem Zahlungshinweis" }}</span></span>
+        <textarea name="note" rows="4" placeholder="{{ t "z. B. Vielen Dank für den Auftrag." }}">{{ index .Form "note" }}</textarea></label>
+      {{ if .Settings.IssuerIBAN }}<p class="note">{{ tf "Der Zahlungshinweis mit IBAN %s wird automatisch angefügt." .Settings.IssuerIBAN }}</p>
+      {{ else }}<p class="note">{{ t "Tipp: Mit einer IBAN unter" }} <a href="/settings">{{ t "Einstellungen" }}</a> {{ t "trägt die Rechnung einen Zahlungshinweis." }}</p>{{ end }}
+    </div>
+  </section>
+
+  {{/* "Als Entwurf speichern" comes first: Enter in a text field presses the
+       first submit button, and saving a draft can be undone, issuing cannot. */}}
+  {{ if index .Form "import" }}
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Rechnung importieren" }}</button>
+    <a class="btn ghost" href="/invoices">{{ t "Abbrechen" }}</a>
+  </div>
+  {{ else }}
+  <div class="actions">
+    <button type="submit" name="action" value="draft" formnovalidate>{{ template "icon" "file" }} {{ t "Als Entwurf speichern" }}</button>
+    <button type="submit" name="action" value="preview" formtarget="_blank">{{ template "icon" "search" }} {{ t "Vorschau (PDF)" }}</button>
+    <button type="submit" name="action" value="issue" class="primary"
+            data-confirm="{{ t "Rechnung jetzt ausstellen? Sie bekommt ihre Nummer und ist danach unveränderlich." }}">{{ template "icon" "check" }} {{ t "Rechnung ausstellen" }}</button>
+    <a class="btn ghost" href="/invoices">{{ t "Abbrechen" }}</a>
+  </div>
+  {{ end }}
+</form>
+{{ end }}

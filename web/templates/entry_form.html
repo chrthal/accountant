@@ -1,0 +1,162 @@
+{{ define "title" }}{{ t "Buchung erfassen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/entries">{{ t "Buchungen" }}</a> / {{ t "neu" }}</p>
+    <h1>{{ t "Buchung erfassen" }}</h1>
+  </div>
+</header>
+
+{{ with .OCR }}
+  {{ if .Found }}
+  <div class="alert notice">{{ template "icon" "camera" }}
+    <p>{{ t "Aus dem Beleg übernommen. Bitte prüfen und bei Bedarf korrigieren." }}</p></div>
+  {{ end }}
+{{ end }}
+
+{{ with index .Form "prefill_note" }}<div class="alert notice">{{ template "icon" "info" }}<p>{{ . }} {{ t "Bitte prüfen." }}</p></div>{{ end }}
+
+<div class="cols-main">
+<form method="post" action="/entries" class="card card-body form" enctype="multipart/form-data">
+  {{ with index .Form "bank_tx_id" }}<input type="hidden" name="bank_tx_id" value="{{ . }}">{{ end }}
+  {{ with index .Form "receipt_queue_id" }}<input type="hidden" name="receipt_queue_id" value="{{ . }}">
+    <input type="hidden" name="receipt_name" value="{{ index $.Form "receipt_name" }}">{{ end }}
+  {{ with index .Form "receipt_payload" }}<input type="hidden" name="receipt_payload" value="{{ . }}">
+    <input type="hidden" name="receipt_name" value="{{ index $.Form "receipt_name" }}">{{ end }}
+
+  <div class="segmented" role="radiogroup" aria-label="{{ t "Art" }}">
+    <label><input type="radio" name="direction" value="outgoing"
+      {{ if ne (index .Form "direction") "income" }}checked{{ end }}><span class="seg-out">{{ template "icon" "out" }} {{ t "Ausgabe" }}</span></label>
+    <label><input type="radio" name="direction" value="income"
+      {{ if eq (index .Form "direction") "income" }}checked{{ end }}><span class="seg-in">{{ template "icon" "in" }} {{ t "Einnahme" }}</span></label>
+  </div>
+
+  <label class="field"><span>{{ t "Betrag brutto (€)" }}</span>
+    <input class="big amount-input" type="text" name="amount" required inputmode="decimal" autocomplete="off"
+           value="{{ index .Form "amount" }}" placeholder="{{ eur 0 }}">
+  </label>
+
+  <div class="fields-2">
+    <label class="field"><span>{{ t "Belegdatum" }}</span>
+      <input type="text" name="booked_on" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Form "booked_on") }}">
+    </label>
+    <label class="field"><span>{{ t "USt-Satz" }}</span>
+      <select name="vat_rate">
+        {{ $sel := index .Form "vat_rate" }}
+        {{ range vatRates }}
+          <option value="{{ . }}" {{ if eq (printf "%d" .) $sel }}selected{{ end }}>
+            {{ if . }}{{ . }} %{{ else }}{{ t "0 % (Kleinunternehmer / ohne USt)" }}{{ end }}
+          </option>
+        {{ end }}
+      </select>
+    </label>
+  </div>
+
+  <label class="field"><span>{{ t "Beschreibung" }}</span>
+    <input type="text" name="description" required maxlength="200"
+           value="{{ index .Form "description" }}" placeholder="{{ t "z. B. Büromaterial" }}">
+  </label>
+
+  <div class="fields-2">
+    <label class="field"><span>{{ t "Kategorie" }} <span class="hint">{{ t "optional" }}</span></span>
+      <select name="category_id" data-sets-vat="vat_rate">
+        <option value="">—</option>
+        {{ range .Categories }}
+          <option value="{{ .ID }}" {{ if .HasDefaultVAT }}data-vat="{{ .VAT }}"{{ end }} {{ if eq (printf "%d" .ID) (index $.Form "category_id") }}selected{{ end }}>
+            {{ .Name }}{{ if and datev .DefaultKonto }} ({{ .DefaultKonto }} / {{ .DefaultGegenkonto }}){{ end }}
+          </option>
+        {{ end }}
+      </select>
+    </label>
+    <label class="field"><span>{{ t "Kontakt" }} <span class="hint">{{ t "optional" }}</span></span>
+      <select name="contact_id">
+        <option value="">—</option>
+        {{ range .Contacts }}
+          <option value="{{ .ID }}" {{ if eq (printf "%d" .ID) (index $.Form "contact_id") }}selected{{ end }}>{{ .Name }}</option>
+        {{ end }}
+      </select>
+    </label>
+  </div>
+
+  {{ $pct := index .Form "business_pct" }}
+  <details class="disclosure" data-outgoing-only {{ if and (ne $pct "100") (ne $pct "") }}open{{ end }}>
+    <summary>{{ t "Teilweise privat genutzt? (z. B. Telefon, Internet)" }}</summary>
+    <div class="disclosure-body">
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Betrieblicher Anteil (%)" }}</span>
+          <input type="number" name="business_pct" min="1" max="100" step="1" inputmode="numeric" value="{{ $pct }}">
+        </label>
+        <label class="field"><span>{{ t "So ermittelt" }} <span class="hint">{{ t "optional" }}</span></span>
+          <input type="text" name="business_note" maxlength="200" value="{{ index .Form "business_note" }}" placeholder="{{ t "z. B. Einzelverbindungsnachweis März–Mai" }}">
+        </label>
+      </div>
+      <p class="note">
+        {{ t "Nur der betriebliche Anteil ist Betriebsausgabe, und nur von ihm ist die Vorsteuer abziehbar (§ 20 Abs 1 EStG, § 12 Abs 1 UStG). Unter 10 % betrieblicher Nutzung ist keine Vorsteuer abziehbar (§ 12 Abs 2 Z 1 lit a UStG)." }}
+        {{ t "Der volle Betrag bleibt gebucht, denn er wurde vom Geschäftskonto bezahlt. Den Anteil mit der Steuerberatung abstimmen und die Ermittlung aufbewahren." }}
+      </p>
+    </div>
+  </details>
+
+  {{ if not (or (index .Form "receipt_payload") (index .Form "receipt_queue_id")) }}
+  <label class="field"><span>{{ t "Beleg" }} <span class="hint">{{ t "optional · Foto oder PDF, max. 10 MiB" }}</span></span>
+    <input type="file" name="receipt" accept="image/*,application/pdf">
+  </label>
+  {{ else }}
+  <p class="meta">{{ template "icon" "clip" }} {{ t "Das Belegfoto" }} <strong>{{ index .Form "receipt_name" }}</strong> {{ t "wird mit der Buchung gespeichert." }}</p>
+  {{ end }}
+
+  {{ if datev }}
+  <details class="disclosure">
+    <summary>{{ t "Konto/Gegenkonto (nur für den DATEV-Export)" }}</summary>
+    <div class="disclosure-body">
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Konto" }}</span>
+          <input type="text" name="konto" value="{{ index .Form "konto" }}" inputmode="numeric">
+        </label>
+        <label class="field"><span>{{ t "Gegenkonto" }}</span>
+          <input type="text" name="gegenkonto" value="{{ index .Form "gegenkonto" }}" inputmode="numeric">
+        </label>
+      </div>
+      <p class="note">
+        {{ t "Für die Einnahmen-Ausgaben-Rechnung werden diese Felder nicht gebraucht, nur der DATEV-Export braucht sie. Leer lassen genügt: dann gilt die Vorgabe der Kategorie. Welcher Kontenrahmen gilt, klärt die Steuerberatung." }}
+        {{ t "Vorgabewerte hinterlegt man unter" }} <a href="/categories">{{ t "Kategorien" }}</a>.
+      </p>
+    </div>
+  </details>
+  {{ else }}
+  <input type="hidden" name="konto" value="{{ index .Form "konto" }}">
+  <input type="hidden" name="gegenkonto" value="{{ index .Form "gegenkonto" }}">
+  {{ end }}
+
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Buchung speichern" }}</button>
+    <a class="btn ghost" href="/entries">{{ t "Abbrechen" }}</a>
+  </div>
+</form>
+
+<aside class="grid">
+  {{ with .OCR }}
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Erkannter Text" }}</h2>{{ with index $.Form "read_method" }}<span class="badge">{{ if eq . "text layer" }}{{ t "Textebene der PDF" }}{{ else }}{{ . }}{{ end }}</span>{{ end }}</div>
+    <div class="card-body"><pre class="ocr-text">{{ .RawText }}</pre></div>
+  </section>
+  {{ end }}
+  {{ with .Transactions }}{{ range . }}
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Aus Bankumsatz" }}</h2><span class="amount">{{ eur .AmountCents }} €</span></div>
+    <dl class="sheet">
+      <div><dt>{{ t "Datum" }}</dt><dd>{{ date .BookedOn }}</dd></div>
+      {{ with .Counterparty }}<div><dt>{{ t "Gegenseite" }}</dt><dd>{{ . }}</dd></div>{{ end }}
+      {{ with .Purpose }}<div><dt>{{ t "Zweck" }}</dt><dd class="small">{{ . }}</dd></div>{{ end }}
+    </dl>
+    <div class="card-foot meta">{{ t "Die Buchung wird beim Speichern diesem Umsatz zugeordnet." }}</div>
+  </section>
+  {{ end }}{{ end }}
+  <section class="card card-body note">
+    <p><strong>{{ t "Brutto eingeben." }}</strong> {{ t "USt und Netto werden aus dem Satz berechnet und mit der Buchung gespeichert." }}</p>
+    <p>{{ t "Eine gespeicherte Buchung ist unveränderlich. Korrigiert wird über einen Storno und eine neue Buchung." }}</p>
+  </section>
+</aside>
+</div>
+{{ end }}

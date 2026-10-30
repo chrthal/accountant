@@ -1,0 +1,160 @@
+{{ define "title" }}{{ t "Auswertung" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ t "Einnahmen-Ausgaben-Rechnung" }}</p>
+    <h1>{{ tf "Auswertung %d" .Year }}</h1>
+  </div>
+  <div class="page-actions">
+    <span class="year-nav">
+      <a href="/reports?year={{ dec .Year }}" aria-label="{{ t "Vorjahr" }}">{{ template "icon" "left" }}</a>
+      <strong>{{ .Year }}</strong>
+      <a href="/reports?year={{ inc .Year }}" aria-label="{{ t "Folgejahr" }}">{{ template "icon" "right" }}</a>
+    </span>
+  </div>
+</header>
+
+<section class="cols-3" aria-label="{{ t "Jahressummen" }}">
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot pos"></span> {{ t "Einnahmen" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.IncomeGrossCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ tf "USt vereinnahmt %s €" (eur .Totals.IncomeVATCents) }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label"><span class="dot neg"></span> {{ t "Ausgaben" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.OutgoingGrossCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ tf "USt bezahlt %s €" (eur .Totals.OutgoingVATCents) }}{{ with .Totals.OutgoingVATBlockedCents }}{{ tf ", davon nicht abziehbar %s €" (eur .) }}{{ end }}{{ with .Totals.OutgoingVATPrivateCents }}{{ tf ", auf Privatanteile %s €" (eur .) }}{{ end }}</div>
+  </div>
+  <div class="card kpi hero">
+    <div class="kpi-label"><span class="dot"></span> {{ t "Ergebnis" }}</div>
+    <div class="kpi-value num">{{ eur .Totals.ResultCents }}<span class="cur">€</span></div>
+    <div class="kpi-sub">{{ t "brutto, stornierte Paare ausgenommen" }}</div>
+  </div>
+</section>
+
+{{ with .Totals }}
+<section class="card section" aria-labelledby="profit-title">
+  <div class="card-head"><h2 id="profit-title">{{ t "Gewinn" }}</h2><span class="meta">{{ t "Einnahmen-Ausgaben-Rechnung" }}</span></div>
+  <dl class="sheet">
+    <div><dt>{{ t "Einnahmen netto" }}</dt><dd class="amount">{{ eur .IncomeNetCents }} €</dd></div>
+    <div><dt>{{ t "− Ausgaben, soweit absetzbar" }}</dt><dd class="amount">{{ eur .OutgoingCostCents }} €</dd></div>
+    {{ with .PrivateShareCents }}<div><dt class="meta">{{ t "Privatanteile gemischt genutzter Ausgaben, brutto (keine Ausgabe)" }}</dt><dd class="amount meta">{{ eur . }} €</dd></div>{{ end }}
+    {{ with .NonDeductibleCents }}<div><dt class="meta">{{ t "nicht absetzbar (z. B. halbe Bewirtung)" }}</dt><dd class="amount meta">{{ eur . }} €</dd></div>{{ end }}
+    {{ if .DepreciationCents }}<div><dt>{{ t "− Abschreibung (AfA)" }} <a href="/assets?year={{ .Year }}" class="meta">{{ t "Anlagenverzeichnis" }}</a></dt><dd class="amount">{{ eur .DepreciationCents }} €</dd></div>{{ end }}
+    <div><dt><strong>{{ t "Gewinn" }}</strong></dt><dd class="amount"><strong>{{ eur .ProfitCents }} €</strong></dd></div>
+  </dl>
+  <p class="card-foot meta">{{ t "Ausgaben netto, in der Kleinunternehmerzeit brutto, teilweise privat genutzte nur mit ihrem betrieblichen Anteil. Anschaffungen, die als Anlage abgeschrieben werden, zählen mit ihrer AfA statt mit dem Kaufpreis. Nicht berücksichtigt: Gewinnfreibetrag, Pauschalen und alles, was nicht gebucht ist." }}</p>
+</section>
+{{ end }}
+
+{{ with .Threshold }}
+<section class="card section" aria-labelledby="ku">
+  <div class="card-head"><h2 id="ku">{{ t "Kleinunternehmergrenze" }}</h2>
+    {{ if eq .Band "under" }}<span class="badge ok">{{ t "unter der Grenze" }}</span>
+    {{ else if eq .Band "tolerance" }}<span class="badge warn">{{ t "in der Toleranz" }}</span>
+    {{ else }}<span class="badge danger">{{ t "überschritten" }}</span>{{ end }}
+  </div>
+  <div class="card-body">
+    {{ with $.Meter }}
+    <svg class="meter" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="{{ t "Umsatz im Verhältnis zur Grenze" }}">
+      <rect class="track" x="0" y="0" width="100" height="10"/>
+      <rect class="fill-{{ .Band }}" x="0" y="0" width="{{ .FillPct }}" height="10"/>
+      <rect class="mark" x="{{ .ThresholdPct }}" y="0" width="0.5" height="10"/>
+      <rect class="mark" x="{{ .TolerancePct }}" y="0" width="0.5" height="10"/>
+    </svg>
+    {{ end }}
+    <dl class="sheet spaced">
+      <div><dt>{{ tf "Umsatz %d" .Year }}</dt><dd class="amount">{{ eur .RevenueCents }} €</dd></div>
+      <div><dt>{{ t "Grenze" }}</dt><dd class="amount">{{ eur 5500000 }} €</dd></div>
+      <div><dt>{{ t "Toleranz" }}</dt><dd class="amount">{{ eur 6050000 }} €</dd></div>
+    </dl>
+    <p class="spaced">
+      {{ if eq .Band "under" }}
+        {{ t "Noch" }} <strong>{{ eur .RemainingToThresholdCents }} €</strong> {{ tf "bis zur Grenze von 55.000 € (%d %% ausgeschöpft)." .PercentOfThreshold }}
+      {{ else if eq .Band "tolerance" }}
+        {{ tf "Die Grenze von 55.000 € ist überschritten, die 10-%%-Toleranz bis 60.500 € ist noch nicht ausgeschöpft (noch %s €). Nach der Regelung bleibt die Befreiung bis Jahresende bestehen und fällt im Folgejahr weg." (eur .RemainingToToleranceCents) }}
+        {{ with .CrossedThresholdAt }}
+          {{ t "Überschritten mit" }} <a href="/entries/{{ .EntryID }}">{{ tf "Buchung #%d" .EntryID }}</a> {{ tf "vom %s (%s)." (date .BookedOn) .Description }}
+        {{ end }}
+      {{ else }}
+        {{ t "Die Toleranzgrenze von 60.500 € ist überschritten." }}
+        {{ with .CrossedToleranceAt }}
+          {{ t "Das geschah mit" }} <a href="/entries/{{ .EntryID }}"><strong>{{ tf "Buchung #%d" .EntryID }}</strong></a> {{ tf "vom %s (%s). An diese Buchung knüpft die rückwirkende Wirkung an." (date .BookedOn) .Description }}
+        {{ end }}
+      {{ end }}
+    </p>
+    <p class="note">{{ t "Das ist eine Rechnung, keine Steuerberatung. Nicht berücksichtigt sind insbesondere: welche Umsätze überhaupt in die Grenze einzurechnen sind, Auslandssachverhalte und die Regeln für den Wiedereinstieg in die Kleinunternehmerregelung. Im Zweifel mit der Steuerberatung abklären." }}</p>
+  </div>
+</section>
+{{ end }}
+
+{{ with .SVS }}<div class="section">{{ template "svs-card" . }}</div>{{ end }}
+
+{{ if .CategoryRows }}
+<section class="card section" aria-labelledby="cats">
+  <div class="card-head"><h2 id="cats">{{ t "Nach Kategorie" }}</h2><span class="meta">{{ t "brutto, wirksame Buchungen" }}</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>{{ t "Kategorie" }}</th><th class="r">{{ t "Buchungen" }}</th><th class="r">{{ t "Einnahmen" }}</th><th class="r">{{ t "Ausgaben" }}</th><th class="r" title="{{ t "Einnahmen netto minus Ausgaben; Ausgaben aus der Kleinunternehmerzeit brutto, sonst netto" }}">{{ t "Saldo" }}</th></tr></thead>
+      <tbody>
+        {{ range .CategoryRows }}
+        <tr><td>{{ if gt .ID 0 }}<a href="/entries?category={{ .ID }}&amp;year={{ $.Year }}">{{ .Name }}</a>{{ else if lt .ID 0 }}<a href="/assets?year={{ $.Year }}">{{ t .Name }}</a>{{ else }}<span class="muted">{{ t "ohne Kategorie" }}</span>{{ end }}</td>
+          <td class="r num">{{ .Count }}</td>
+          <td class="r amount">{{ eur .IncomeGrossCents }}</td>
+          <td class="r amount">{{ eur .OutgoingGrossCents }}</td>
+          {{/* Expenses from the exempt period count gross, because their VAT is
+               part of the cost (ADR 0022). */}}
+          <td class="r amount">{{ eur .SaldoCents }}</td></tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{ end }}
+
+{{ with .Private }}{{ if .Lines }}
+<section class="card section" aria-labelledby="private-title">
+  <div class="card-head"><h2 id="private-title">{{ t "Privat" }}</h2><span class="meta">{{ t "nicht in der Einnahmen-Ausgaben-Rechnung" }}</span></div>
+  <dl class="sheet">
+    <div><dt>{{ t "Privatentnahmen" }}</dt><dd class="amount">{{ eur .WithdrawalCents }} €</dd></div>
+    <div><dt>{{ t "Privateinlagen" }}</dt><dd class="amount">{{ eur .DepositCents }} €</dd></div>
+  </dl>
+  <p class="card-foot meta">{{ tf "%d Bankumsätze als privat markiert. Sie ändern Ergebnis und Umsatzsteuer nicht." .Lines }} <a href="/bank?all=1">{{ t "Zur Bank" }}</a></p>
+</section>
+{{ end }}{{ end }}
+
+<section class="card section" aria-labelledby="exp">
+  <div class="card-head"><h2 id="exp">{{ t "Export für die Steuerberatung" }}</h2></div>
+  <div class="card-body">
+    <div class="actions">
+      <a class="btn primary" href="/export/csv?year={{ .Year }}">{{ template "icon" "download" }} {{ t "CSV für die Steuerberatung" }}</a>
+      <a class="btn" href="/export/archive?year={{ .Year }}">{{ template "icon" "download" }} {{ t "Archiv mit Belegen (ZIP)" }}</a>
+      {{ if and datev (not .DATEVProblem) (not .NoAccounts) }}
+        <a class="btn" href="/export/datev?year={{ .Year }}">{{ template "icon" "download" }} {{ t "DATEV EXTF Buchungsstapel" }}</a>
+      {{ end }}
+      <a class="btn ghost" href="/reports/vat?year={{ .Year }}">{{ template "icon" "percent" }} {{ t "Umsatzsteuer je Zeitraum" }}</a>
+    </div>
+
+    {{ if datev }}
+    {{ if .DATEVProblem }}
+    <div class="alert warn spaced">{{ template "icon" "alert" }}
+      <p>{{ tf "DATEV-Export noch nicht möglich: %s" .DATEVProblem }}<br><a href="/settings">{{ t "Unter Einstellungen eintragen" }}</a></p></div>
+    {{ end }}
+
+    {{ if .NoAccounts }}
+    <div class="alert warn spaced">{{ template "icon" "alert" }}
+      <p>{{ tf "DATEV-Export noch nicht möglich: %d Buchung(en) ohne Konto/Gegenkonto:" (len .NoAccounts) }}
+      {{ range $i, $id := .NoAccounts }}{{ if $i }}, {{ end }}<a href="/entries/{{ $id }}">#{{ $id }}</a>{{ end }}.
+      <br>{{ t "Für die Einnahmen-Ausgaben-Rechnung ist das kein Problem; nur DATEV braucht beide Konten je Zeile. Bestehende Buchungen lassen sich nicht nachträglich ändern (sie sind unveränderlich). Wo es nötig ist, storniert man sie und bucht neu, nachdem unter" }}
+      <a href="/categories">{{ t "Kategorien" }}</a> {{ t "die passenden Vorgaben hinterlegt sind." }}</p></div>
+    {{ end }}
+    {{ end }}
+
+    <p class="note">{{ t "Die CSV-Datei enthält alle Buchungen des Jahres samt Konto/Gegenkonto und eine USt-Zusammenfassung; sie öffnet sich direkt in Excel." }}</p>
+    <p class="note">{{ t "Das Archiv ist eine ZIP-Datei mit dieser CSV, allen Belegen zu den Buchungen und allen im Jahr ausgestellten Rechnungen als PDF. Es lässt sich ohne diese App öffnen, weitergeben und aufbewahren." }}</p>
+    {{ if datev }}<p class="note"><strong>{{ t "Zum DATEV-Export:" }}</strong> {{ t "Die Datei folgt dem dokumentierten EXTF-Format, wurde aber" }}
+      <strong>{{ t "noch nicht mit DATEVs eigenem Format-Prüfprogramm geprüft" }}</strong>{{ t ". Dafür braucht es eine DATEV-Installation. Bitte vor dem ersten echten Einsatz einmal prüfen lassen. Auch die Soll/Haben-Zuordnung und der Kontenrahmen gehören mit der Steuerberatung abgestimmt." }}</p>{{ end }}
+  </div>
+</section>
+{{ end }}

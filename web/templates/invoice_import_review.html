@@ -1,0 +1,67 @@
+{{ define "title" }}{{ t "Importierte Rechnungen prüfen" }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/invoices">{{ t "Rechnungen" }}</a> / <a href="/invoices/import">{{ t "importieren" }}</a></p>
+    <h1>{{ t "Importierte Rechnungen prüfen" }}</h1>
+    <p class="lede">{{ t "Was aus den PDFs gelesen wurde. Bitte mit dem Original vergleichen und korrigieren; importiert wird nur, was angehakt ist. Eine importierte Rechnung ist danach unveränderlich wie eine ausgestellte." }}</p>
+  </div>
+</header>
+
+{{ template "notice" .Notice }}
+
+{{ if not .ImportRows }}
+<section class="card"><div class="empty">{{ template "icon" "check" }}<p>{{ t "Keine Rechnungen auf der Warteliste." }}</p>
+  <a class="btn" href="/invoices/import">{{ t "Rechnungen importieren" }}</a></div></section>
+{{ else }}
+<form method="post" action="/invoices/import/review" class="grid">
+  {{ $cons := .Contacts }}
+  {{ range .ImportRows }}
+  {{ $id := i64 .ID }}
+  <section class="card draft">
+    <div class="card-head">
+      <label class="check"><input type="checkbox" name="pick" value="{{ $id }}" {{ if .Picked }}checked{{ end }}>
+        <span><strong>{{ .Filename }}</strong></span></label>
+      <a class="btn ghost sm" href="/invoices/import/queue/{{ $id }}/pdf" target="_blank" rel="noopener">{{ template "icon" "file" }} {{ t "Original ansehen" }}</a>
+    </div>
+    <div class="card-body">
+      {{ with .Err }}<div class="alert error">{{ template "icon" "alert" }}<p>{{ . }}</p></div>
+      {{ else }}{{ with .Problem }}<div class="alert warn">{{ template "icon" "alert" }}<p>{{ . }}</p></div>{{ end }}{{ end }}
+      {{ with index .Fields "note" }}<p class="meta">{{ . }}</p>{{ end }}
+      <div class="draft-grid">
+        <label class="field"><span>{{ t "Rechnungsnummer" }}</span>
+          <input type="text" name="number_{{ $id }}" maxlength="40" value="{{ index .Fields "number" }}"></label>
+        <label class="field"><span>{{ t "Rechnungsdatum" }}</span>
+          <input type="text" name="issue_date_{{ $id }}" autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date (index .Fields "issue_date") }}"></label>
+        <label class="field"><span>{{ t "Betrag brutto (€)" }}</span>
+          <input class="amount-input" type="text" name="gross_{{ $id }}" inputmode="decimal" value="{{ index .Fields "gross" }}" placeholder="{{ eur 0 }}"></label>
+        <label class="field"><span>{{ t "USt-Satz" }}</span>
+          <select name="vat_rate_{{ $id }}">
+            {{ $v := index .Fields "vat_rate" }}
+            {{ range vatRates }}<option value="{{ . }}" {{ if eq (itoa .) $v }}selected{{ end }}>{{ . }} %</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Empfänger" }}</span>
+          <select name="contact_id_{{ $id }}"><option value="">{{ t "— neuer Kunde —" }}</option>
+            {{ $csel := index .Fields "contact_id" }}
+            {{ range $cons }}<option value="{{ .ID }}" {{ if eq (i64 .ID) $csel }}selected{{ end }}>{{ .Name }}</option>{{ end }}
+          </select></label>
+        <label class="field"><span>{{ t "Neuer Kunde" }} <span class="hint">{{ t "wenn oben keiner gewählt ist" }}</span></span>
+          <input type="text" name="new_contact_name_{{ $id }}" value="{{ index .Fields "new_contact_name" }}"></label>
+      </div>
+      <div class="actions">
+        <a class="btn ghost sm" href="/invoices/import/queue/{{ $id }}">{{ t "Einzeln öffnen" }}</a>
+        <button type="submit" name="discard" value="{{ $id }}" class="ghost sm danger" formnovalidate>{{ template "icon" "trash" }} {{ t "Verwerfen" }}</button>
+      </div>
+    </div>
+  </section>
+  {{ end }}
+  <div class="actions">
+    <button type="submit" class="primary">{{ template "icon" "check" }} {{ t "Angehakte importieren" }}</button>
+    <button type="submit" name="discard" value="all" class="ghost danger" formnovalidate
+            data-confirm="{{ t "Alle Rechnungen von der Warteliste verwerfen? Importiert wird dabei nichts." }}">{{ t "Alle verwerfen" }}</button>
+    <span class="meta">{{ t "Vorausgewählt ist, was vollständig gelesen wurde. Ein neuer Kunde wird beim Import angelegt, für mehrere Rechnungen desselben Namens nur einmal." }}</span>
+  </div>
+</form>
+{{ end }}
+{{ end }}

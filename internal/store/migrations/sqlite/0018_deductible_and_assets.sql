@@ -1,0 +1,24 @@
+-- ADR 0037: deductible share per category (Bewirtung 50 %) and assets
+-- written off over their useful life (AfA). Keep in lockstep with
+-- postgres/0018_deductible_and_assets.sql.
+--
+-- deductible_pct is the share of an expense that counts as cost for the
+-- profit. The VAT is not touched by it.
+--
+-- An asset classifies one expense booking: its cost no longer counts in the
+-- year it was paid, but spread over its useful life. cost_cents is stored
+-- when the asset is created, net or gross as the VAT was deductible or not,
+-- like a booking stores its own split.
+
+ALTER TABLE categories ADD COLUMN deductible_pct INTEGER NOT NULL DEFAULT 100
+    CHECK (deductible_pct BETWEEN 1 AND 100);
+
+CREATE TABLE assets (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id          INTEGER NOT NULL UNIQUE REFERENCES entries (id),
+    name              TEXT NOT NULL,
+    cost_cents        INTEGER NOT NULL CHECK (cost_cents > 0),
+    in_use_from       TEXT NOT NULL,
+    useful_life_years INTEGER NOT NULL CHECK (useful_life_years BETWEEN 1 AND 50),
+    created_at        TIMESTAMP NOT NULL
+);

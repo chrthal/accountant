@@ -1,0 +1,22 @@
+                                                                        Papier Profi KG
+                                                                        UID: ATU99999999
+
+
+
+Muster IT e.U.
+
+
+
+Rechnung 2026-0001
+Rechnungsdatum: 12.09.2026
+Liefer-/Leistungsdatum: 10.09.2026
+
+
+Pos   Beschreibung                   Menge      Einzelpreis      USt               Netto
+1     Kopierpapier                   10 Pkg.         10,00       20 %             100,00
+
+
+                                                   Nettobetrag              100,00 EUR
+                                           USt 20 % auf 100,00                20,00 EUR
+                                                Gesamtbetrag                120,00 EUR
+

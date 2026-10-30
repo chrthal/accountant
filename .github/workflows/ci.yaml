@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bookkeeper
+          POSTGRES_PASSWORD: bookkeeper
+          POSTGRES_DB: bookkeeper_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bookkeeper -d bookkeeper_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      TEST_POSTGRES_DSN: postgres://bookkeeper:bookkeeper@127.0.0.1:5432/bookkeeper_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      # Without tesseract and poppler the OCR and PDF tests skip themselves,
+      # which would quietly leave receipt and invoice import untested.
+      - name: Install OCR tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu poppler-utils
+
+      - name: Vet
+        run: go vet ./...
+
+      # Runs against both engines: SQLite always, Postgres via the DSN above.
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...
+
+  # Exercises the container path on every merge instead of only at release
+  # time, so a broken Dockerfile surfaces before a tag is cut.
+  edge-image:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push :edge
+        run: |
+          docker build --build-arg VERSION="edge-${GITHUB_SHA::7}" -t "$IMAGE:edge" .
+          docker push "$IMAGE:edge"

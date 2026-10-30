@@ -1,0 +1,193 @@
+{{ define "title" }}{{ tf "Buchung #%d" .Entry.ID }} — kmu-buchhaltung{{ end }}
+
+{{ define "content" }}
+{{ with .Entry }}
+<header class="page-head">
+  <div>
+    <p class="eyebrow"><a href="/entries">{{ t "Buchungen" }}</a> / #{{ .ID }}</p>
+    <h1>{{ .Description }}</h1>
+    <p class="lede">
+      {{ template "direction" .Direction }} {{ tf "vom %s" (date .BookedOn) }}
+      {{ if .IsReversal }}<span class="badge">{{ t "Storno zu" }} <a href="/entries/{{ idstr .ReversesEntryID }}">#{{ idstr .ReversesEntryID }}</a></span>{{ end }}
+      {{ if .IsReversed }}<span class="badge warn">{{ t "storniert durch" }} <a href="/entries/{{ idstr .ReversedByID }}">#{{ idstr .ReversedByID }}</a></span>{{ end }}
+    </p>
+  </div>
+  <div class="page-actions">
+    {{ if .Effective }}
+    <form method="post" action="/entries/{{ .ID }}/reverse"
+          data-confirm="{{ tf "Buchung #%d stornieren? Es wird eine gegenläufige Buchung angelegt; die ursprüngliche bleibt erhalten." .ID }}">
+      <button type="submit" class="danger">{{ template "icon" "undo" }} {{ t "Stornieren" }}</button>
+    </form>
+    {{ end }}
+  </div>
+</header>
+
+<div class="cols-main">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Beträge" }}</h2>
+      <span class="amount {{ if eq .Direction "income" }}pos{{ else }}neg{{ end }}">{{ if eq .Direction "outgoing" }}−{{ else }}+{{ end }}{{ eur .AmountGrossCents }} €</span>
+    </div>
+    <dl class="sheet">
+      <div><dt>{{ t "Brutto" }}</dt><dd class="amount">{{ eur .AmountGrossCents }} €</dd></div>
+      <div><dt>{{ t "USt-Satz" }}</dt><dd>{{ if .VATRate }}{{ .VATRate }} %{{ else }}{{ t "ohne USt" }}{{ end }}</dd></div>
+      {{ if and .IsMixed (eq .Direction "outgoing") (not $.EntryVATBlocked) }}
+      <div><dt>{{ t "USt" }}</dt><dd class="amount">{{ eur .VATCents }} €</dd></div>
+      <div><dt>{{ t "davon Vorsteuer" }}</dt><dd class="amount">{{ eur .BusinessVATCents }} €</dd></div>
+      {{ else }}
+      <div><dt>{{ if eq .Direction "income" }}{{ t "USt" }}{{ else if $.EntryVATBlocked }}{{ t "USt (nicht abziehbar, Kleinunternehmer)" }}{{ else }}{{ t "Vorsteuer" }}{{ end }}</dt><dd class="amount">{{ eur .VATCents }} €</dd></div>
+      {{ end }}
+      <div><dt>{{ t "Netto" }}</dt><dd class="amount">{{ eur .NetCents }} €</dd></div>
+      {{ if .IsMixed }}
+      <div><dt>{{ t "Betrieblicher Anteil" }}</dt><dd>{{ tf "%d %% betrieblich, %d %% privat" .BusinessPct .PrivatePct }}{{ with .BusinessNote }}<br><span class="meta">{{ . }}</span>{{ end }}
+        {{ if lt .BusinessPct 10 }}<br><span class="meta">{{ t "Unter 10 % betrieblich: keine Vorsteuer (§ 12 Abs 2 Z 1 lit a UStG)." }}</span>{{ end }}</dd></div>
+      {{ end }}
+      <div><dt>{{ t "Wirksam" }}</dt><dd>{{ if .Effective }}{{ t "ja, zählt in allen Summen" }}{{ else }}{{ t "nein, Teil eines Storno-Paars" }}{{ end }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="grid">
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Zuordnung" }}</h2></div>
+    <dl class="sheet">
+      <div><dt>{{ t "Kategorie" }}</dt><dd>{{ with .CategoryName }}{{ . }}{{ else }}<span class="muted">{{ t "keine" }}</span>{{ end }}</dd></div>
+      <div><dt>{{ t "Kontakt" }}</dt><dd>{{ with .ContactName }}{{ . }}{{ else }}<span class="muted">{{ t "keiner" }}</span>{{ end }}</dd></div>
+      {{ if datev }}<div><dt>{{ t "Konto / Gegenkonto" }}</dt><dd>{{ if or .Konto .Gegenkonto }}{{ .Konto }} / {{ .Gegenkonto }}{{ else }}<span class="muted">{{ t "nicht gesetzt (nur für DATEV nötig)" }}</span>{{ end }}</dd></div>{{ end }}
+      {{ with .InvoiceNumber }}<div><dt>{{ t "Rechnung" }}</dt><dd><a href="/invoices/{{ idstr $.Entry.InvoiceID }}">{{ . }}</a></dd></div>{{ end }}
+      <div><dt>{{ t "Erfasst" }}</dt><dd>{{ date (.CreatedAt.Local.Format "2006-01-02") }} {{ .CreatedAt.Local.Format "15:04" }}</dd></div>
+    </dl>
+  </section>
+
+  {{ if or $.Shares (and (eq .Direction "outgoing") .Effective (not $.Asset)) }}
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Betrieblicher Anteil" }}</h2>
+      <span class="badge">{{ .BusinessPct }} %</span></div>
+    <div class="card-body grid">
+      {{ with $.Shares }}
+      <ol class="history">
+        {{ range . }}<li><span class="meta">{{ date (.At.Local.Format "2006-01-02") }} {{ .At.Local.Format "15:04" }} · {{ if .Original }}{{ t "gebucht mit" }}{{ else }}{{ t "geändert auf" }}{{ end }}</span> {{ .BusinessPct }} %{{ with .BusinessNote }} <span class="meta">({{ . }})</span>{{ end }}</li>{{ end }}
+      </ol>
+      {{ end }}
+      {{ if and (eq .Direction "outgoing") .Effective (not $.Asset) }}
+      <details class="disclosure">
+        <summary>{{ t "Betrieblichen Anteil ändern" }}</summary>
+        <div class="disclosure-body">
+          <form method="post" action="/entries/{{ .ID }}/share" class="form">
+            <div class="fields-2">
+              <label class="field"><span>{{ t "Betrieblicher Anteil (%)" }}</span>
+                <input type="number" name="business_pct" min="1" max="100" step="1" inputmode="numeric" value="{{ .BusinessPct }}"></label>
+              <label class="field"><span>{{ t "So ermittelt" }} <span class="hint">{{ t "optional" }}</span></span>
+                <input type="text" name="business_note" maxlength="200" value="{{ .BusinessNote }}" placeholder="{{ t "z. B. Einzelverbindungsnachweis" }}"></label>
+            </div>
+            <div class="actions"><button type="submit">{{ template "icon" "check" }} {{ t "Anteil speichern" }}</button></div>
+          </form>
+          <p class="note">{{ tf "Die Änderung wirkt auf Gewinn und Vorsteuer im Zeitraum der Buchung (Belegdatum %s). Ist die Umsatzsteuervoranmeldung dafür schon abgegeben, mit der Steuerberatung klären, ob sie berichtigt wird. Der bisherige Anteil bleibt sichtbar." (date .BookedOn) }}</p>
+        </div>
+      </details>
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+
+  <section class="card">
+    <div class="card-head"><h2>{{ t "Beschreibung" }}</h2>
+      {{ with $.History }}<span class="badge">{{ tf "%d-mal geändert" (len (slice . 1)) }}</span>{{ end }}</div>
+    <div class="card-body grid">
+      {{ with $.History }}
+      <ol class="history">
+        {{ range . }}<li><span class="meta">{{ date (.At.Local.Format "2006-01-02") }} {{ .At.Local.Format "15:04" }} · {{ if .Original }}{{ t "gebucht als" }}{{ else }}{{ t "geändert in" }}{{ end }}</span> {{ .Description }}</li>{{ end }}
+      </ol>
+      {{ end }}
+      <details class="disclosure">
+        <summary>{{ t "Beschreibung ändern" }}</summary>
+        <div class="disclosure-body">
+          <form method="post" action="/entries/{{ .ID }}/description" class="form">
+            <label class="field"><span>{{ t "Beschreibung" }}</span>
+              <input type="text" name="description" required maxlength="200" value="{{ .Description }}"></label>
+            <div class="actions"><button type="submit">{{ template "icon" "check" }} {{ t "Beschreibung speichern" }}</button></div>
+          </form>
+          <p class="note">{{ t "Nur die Beschreibung lässt sich ändern. Beträge, Datum und Zuordnung bleiben, wie gebucht; dafür gibt es den Storno. Die ursprüngliche Beschreibung und jede Änderung bleiben sichtbar." }}</p>
+        </div>
+      </details>
+    </div>
+  </section>
+  </div>
+</div>
+{{ end }}
+
+<section class="card section" aria-labelledby="belege">
+  <div class="card-head"><h2 id="belege">{{ t "Belege" }}</h2>
+    {{ if .Attachments }}<span class="badge ok">{{ len .Attachments }}</span>
+    {{ else if and (eq .Entry.Direction "outgoing") .Entry.Effective }}<span class="badge warn">{{ t "fehlt" }}</span>{{ end }}</div>
+  <div class="card-body">
+    {{ if .Attachments }}
+    <div class="thumbs">
+      {{ range .Attachments }}
+      <a class="thumb" href="/attachments/{{ .ID }}" target="_blank" rel="noopener" title="{{ .Filename }}">
+        {{ if .IsImage }}<img src="/attachments/{{ .ID }}" alt="{{ tf "Beleg %s" .Filename }}" loading="lazy">
+        {{ else }}<span>{{ template "icon" "file" }}<br>{{ if .Filename }}{{ .Filename }}{{ else }}PDF{{ end }}</span>{{ end }}
+      </a>
+      {{ end }}
+    </div>
+    {{ else }}
+    <p class="meta">{{ t "Noch kein Beleg abgelegt." }}{{ if eq .Entry.Direction "outgoing" }} {{ t "Für Ausgaben ist der Beleg der Nachweis, sieben Jahre aufzubewahren (§ 132 BAO)." }}{{ end }}</p>
+    {{ end }}
+    <form method="post" action="/entries/{{ .Entry.ID }}/attachments" enctype="multipart/form-data" class="inline-form spaced">
+      <input type="file" name="receipt" accept="image/*,application/pdf" required aria-label="{{ t "Beleg auswählen" }}">
+      <button type="submit" class="sm">{{ template "icon" "clip" }} {{ t "Beleg anhängen" }}</button>
+    </form>
+    <p class="note spaced">{{ t "Belege werden nicht ersetzt oder gelöscht, nur ergänzt, wie die Buchung selbst." }}</p>
+  </div>
+</section>
+
+{{ if or .Asset (and (eq .Entry.Direction "outgoing") .Entry.Effective) }}
+<section class="card section" id="anlage" aria-labelledby="anlage-title">
+  <div class="card-head"><h2 id="anlage-title">{{ t "Anlage (Abschreibung)" }}</h2>{{ with .Asset }}<span class="badge ok">{{ t "wird abgeschrieben" }}</span>{{ end }}</div>
+  <div class="card-body">
+  {{ with .Asset }}
+    <dl class="sheet">
+      <div><dt>{{ t "Bezeichnung" }}</dt><dd>{{ .Name }}</dd></div>
+      <div><dt>{{ t "Anschaffungskosten" }}</dt><dd class="amount">{{ eur .CostCents }} €</dd></div>
+      <div><dt>{{ t "Nutzungsdauer" }}</dt><dd>{{ tf "%d Jahre" .UsefulLifeYears }}</dd></div>
+      <div><dt>{{ t "In Betrieb seit" }}</dt><dd>{{ date .InUseFrom }}</dd></div>
+      <div><dt>{{ tf "AfA %d" $.Year }}</dt><dd class="amount">{{ eur (.AfA $.Year) }} €</dd></div>
+      <div><dt>{{ tf "Restbuchwert Ende %d" $.Year }}</dt><dd class="amount">{{ eur (.BookValue $.Year) }} €</dd></div>
+    </dl>
+    <p class="note">{{ t "Die Anschaffung zählt nicht im Jahr der Zahlung, sondern verteilt über die Nutzungsdauer." }} <a href="/assets">{{ t "Anlagenverzeichnis" }}</a></p>
+    <form method="post" action="/assets/{{ .ID }}/delete" class="inline-form" data-confirm="{{ t "Abschreibung entfernen? Die Ausgabe zählt dann wieder ganz im Jahr der Zahlung, auch in schon abgeschlossenen Jahren." }}">
+      <input type="hidden" name="entry_id" value="{{ .EntryID }}">
+      <button type="submit" class="ghost sm danger">{{ t "Abschreibung entfernen" }}</button>
+    </form>
+  {{ else }}
+    <p class="note">{{ if gt $.AssetCostCents gwgLimit }}<strong>{{ tf "Anschaffungskosten %s € netto: über 1.000 €." (eur $.AssetCostCents) }}</strong> {{ t "Ein Wirtschaftsgut, das länger als ein Jahr genutzt wird, ist über seine Nutzungsdauer abzuschreiben (AfA)." }}
+      {{ else }}{{ t "Bis 1.000 € netto (geringwertiges Wirtschaftsgut) darf die Anschaffung sofort ganz abgesetzt werden; abschreiben ist dann nicht nötig." }}{{ end }}</p>
+    <form method="post" action="/entries/{{ .Entry.ID }}/asset" class="form">
+      <div class="fields-2">
+        <label class="field"><span>{{ t "Bezeichnung" }}</span>
+          <input type="text" name="name" maxlength="200" value="{{ .Entry.Description }}"></label>
+        <label class="field"><span>{{ t "Nutzungsdauer (Jahre)" }}</span>
+          <input type="text" name="years" inputmode="numeric" required placeholder="3"></label>
+        <label class="field"><span>{{ t "In Betrieb seit" }} <span class="hint">{{ t "ab 1. Juli: halbe AfA im ersten Jahr" }}</span></span>
+          <input type="text" name="in_use_from" required autocomplete="off" data-date="{{ dateLayout }}" data-date-label="{{ t "Kalender öffnen" }}" placeholder="{{ date "2026-03-15" }}" value="{{ date .Entry.BookedOn }}"></label>
+      </div>
+      <p class="meta">{{ t "Üblich sind etwa: Computer und Handy 3 Jahre, Software 3 Jahre, Büromöbel 10 Jahre, PKW mindestens 8 Jahre (§ 8 Abs 6 EStG, dort mit einer Obergrenze der Anschaffungskosten). Linear nach § 7 EStG. Nicht abgebildet: degressive AfA und das Ausscheiden vor Ende der Nutzungsdauer. Im Zweifel mit der Steuerberatung klären." }}</p>
+      <div class="actions"><button type="submit" class="primary sm">{{ template "icon" "check" }} {{ t "Als Anlage abschreiben" }}</button></div>
+    </form>
+  {{ end }}
+  </div>
+</section>
+{{ end }}
+
+<section class="card section">
+  <div class="card-head"><h2>{{ t "Bankumsatz" }}</h2></div>
+  {{ if .Transactions }}
+  <dl class="sheet">
+    {{ range .Transactions }}
+    <div><dt>{{ date .BookedOn }}</dt><dd><span class="amount">{{ eur .AmountCents }} €</span>
+      · {{ if .Counterparty }}{{ .Counterparty }}{{ else }}{{ .Purpose }}{{ end }}</dd></div>
+    {{ end }}
+  </dl>
+  {{ else }}
+  <div class="card-body meta">{{ t "Keinem Bankumsatz zugeordnet." }} <a href="/bank">{{ t "Zur Bank-Abstimmung" }}</a></div>
+  {{ end }}
+</section>
+{{ end }}
