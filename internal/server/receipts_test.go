@@ -62,7 +62,7 @@ func TestReceiptPhotoBecomesAConfirmedBooking(t *testing.T) {
 	if !strings.Contains(body, `value="13,00"`) {
 		t.Errorf("amount not pre-filled into the form:\n%s", body)
 	}
-	if !strings.Contains(body, `value="2026-03-15"`) {
+	if !strings.Contains(body, `value="15.03.2026"`) {
 		t.Error("date not pre-filled into the form")
 	}
 	// And the raw text must be visible, so a wrong read is obvious.
@@ -162,7 +162,7 @@ func TestPDFInvoiceBecomesADraft(t *testing.T) {
 		t.Fatalf("upload = %d: %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`value="120,00"`, `value="2026-09-12"`,
+	for _, want := range []string{`value="120,00"`, `value="12.09.2026"`,
 		`value="Papier Profi KG – Rechnung 4711"`, "Textebene", `name="receipt_payload"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("draft lacks %s", want)
